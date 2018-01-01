@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="UTF-8">
+	<link rel="stylesheet" href="resources/css/photon.min.css">
+    <link rel="stylesheet" href="resources/css/utils.css">
+    <link rel="stylesheet" href="resources/css/tx.css">
+</head>
+<body>
+	<div id="txdetails-modal">
+		<h2>Transaction details</h2>
+		<div>
+			<div class="txdetails-line">
+				<div class="txdetails-label">Hash:</div>
+				<div class="txdetails-data" id="tx-hash"></div>
+				<div class="clear"></div>
+			</div>
+			<div class="txdetails-line">
+				<div class="txdetails-label">Payment Id:</div>
+				<div class="txdetails-data" id="tx-pid"></div>
+				<div class="clear"></div>
+			</div>
+			<div class="txdetails-line">
+				<div class="txdetails-label">Extra:</div>
+				<div class="txdetails-data" id="tx-extra"></div>
+				<div class="clear"></div>
+			</div>
+			<div class="txdetails-line">
+				<div class="txdetails-label left">Date/Time:</div>
+				<div class="txdetails-data left" id="tx-datetime"></div>
+				<div class="clear"></div>
+			</div>
+			<div class="txdetails-line">
+				<div class="txdetails-label left">Status:</div>
+				<div class="txdetails-data left" id="tx-confirmations"></div>
+				<div class="clear"></div>
+			</div>
+			<div class="txdetails-line">
+				<div class="txdetails-label left">Amount:</div>
+				<div class="txdetails-data left" id="tx-amount"></div>
+				<div class="clear"></div>
+			</div>
+		</div>
+		<div id="txmodal-btn" class="right"><button id="closeModal" class="btn btn-form btn-positive">Close</button></div>
+		<div class="clear"></div>
+	</div>
+	<script src="tx.js"></script>
+</body>
+</html>

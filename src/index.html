@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>LeviarCoin Wallet</title>
+    <link rel="stylesheet" href="resources/css/photon.min.css">
+    <link rel="stylesheet" href="resources/css/utils.css">
+    <link rel="stylesheet" href="resources/css/app.css">
+    <script> if (typeof module === 'object') {window.module = module; module = undefined;} </script>
+    <script src="resources/js/jquery.min.js" charset="utf-8"></script>
+    <!--<script src="resources/js/chart.min.js" charset="utf-8"></script>-->
+    <script src="resources/js/ctxMenu.js" charset="utf-8"></script>
+    <script src="resources/js/interfaceUpdater.js" charset="utf-8"></script>
+    <script src="resources/js/daemonProcess.js" charset="utf-8"></script>
+    <script src="resources/js/walletProcess.js" charset="utf-8"></script>
+    <script src="resources/js/settingsProcess.js" charset="utf-8"></script>
+    <script src="resources/js/menu.js" charset="utf-8"></script>
+    <script src="resources/js/addressBook.js" charset="utf-8"></script>
+    <script> if (window.module) module = window.module; </script>
+  </head>
+  <body>
+	<div class="window">
+		<div class="window-content">
+			<div id="main-overlay"></div><div id="main-overlay-loading"></div>
+			<div id="info-wallet"><div id="info-wallet-title"></div><div id="info-wallet-subtitle"></div></div>
+			<div id="init-wallet">
+				<div id="init-preparing">
+					<div id="init-preparing-title">
+						Welcome. Preparing...
+					</div>
+				</div>
+				<div id="init-new-wallet">
+					<div id="init-welcome">
+						Hello. Setup your wallet.
+					</div>
+					<div id="init-choose">
+						<div id="goback-new-wallet">
+							<a class="btn btn-positive" href="javascript:void(0);">Go Back</a>
+						</div>
+						<div class="left init-block">
+							<div class="init-block-title">
+								Create new address
+							</div>
+							<div class="init-block-content">
+								<div class="form-group">
+									<input id="form-init-new-wallet-name" type="text" class="form-control" placeholder="Default name is wallet">
+								</div>
+								<div class="form-group">
+									<input id="form-init-new-1" type="password" class="form-control" placeholder="Choose a password (optional, but recommended)">
+								</div>
+								<div class="checkbox">
+									<label>
+										<input checked type="checkbox" id="save-address"> Make this my default wallet
+									</label>
+								</div>
+								<div class="checkbox">
+									<label>
+										<input type="checkbox"  id="save-password"> Save my password
+									</label>
+								</div>
+								<div class="form-group">
+									<button onclick="fnGuiInitCreateWallet();" class="btn btn-form btn-positive">Create Wallet</button>
+								</div>
+							</div>
+						</div>
+						<div class="right init-block">
+							<div class="init-block-title">
+								Import existing wallet
+							</div>
+							<div class="init-block-content">
+								<div class="form-group">
+									<input id="form-init-import-1" type="password" class="form-control" placeholder="If your wallet is encrypted, type your password here">
+								</div>
+								<div class="checkbox">
+									<label>
+										<input type="checkbox"  id="save-password-import"> Save my password
+									</label>
+								</div>
+								<div class="form-group">
+									<button onclick="fnGuiInitImportWallet();" class="btn btn-form btn-default">Import Wallet</button>
+								</div>
+							</div>
+						</div>
+					</div>
+					<div id="init-finishing">
+						Please wait... I'm preparing your wallet :)
+					</div>
+				</div>
+			</div>
+			<div id="ask-pwd-wallet">
+				<div id="ask-pwd-wallet-title">
+					Password required.
+				</div>
+				<div id="ask-pwd-wallet-info">
+					Input the password to unlock your wallet<br>
+					<div class="form-group unlock-wal-pw">
+						<input id="form-init-ask-1" type="password" class="form-control" placeholder="Password">
+					</div>
+					<div class="form-group unlock-wal-pw">
+						<button onclick="fnGuiUnlockWallet();" class="btn btn-form btn-default">Open</button>
+					</div>
+					<div id="unlock-loading">Loading...</div>
+				</div>
+			</div>
+			<div id="load-import-wallet">
+				<div id="load-import-wallet-title">
+					Importing wallet. Please wait.
+				</div>
+				<div id="load-import-wallet-info">
+					The operation may take some time...<br>
+					<div class="import-steps" id="import-step-1">Wallet imported. I'm scanning blockchain...</div>
+					<div class="import-steps" id="import-step-2">Done. Saving data...</div>
+					<div class="import-steps" id="import-step-3">Configuration saved. Enjoy.</div>
+				</div>
+			</div>
+			<div id="close-wallet-proc">
+				<div id="close-wallet-proc-title">
+					Closing. Please wait.
+				</div>
+				<div id="close-wallet-proc-info">
+					Do not force close...
+				</div>
+			</div>
+        <div class="pane-group">
+          <div class="pane-mini sidebar">
+            <ul class="list-group">
+              <li class="sidebar-top-logo">
+                <img src="resources/images/leviarcoin.png">
+              </li>
+              <li class="list-group-item selected" app-pane="network">
+                <span class="icon icon-home"></span>
+              </li>
+			  <li class="list-group-item" app-pane="send">
+			    <span class="icon icon-direction"></span>
+			  </li>
+              <li class="list-group-item" app-pane="transactions">
+                <span class="icon icon-doc-text"></span>
+              </li>
+              <li class="list-group-item" app-pane="settings">
+                <span class="icon icon-cog"></span>
+              </li>
+            </ul>
+          </div>
+          <div class="pane">
+            <div class="panes-topbar" id="main-statusbar">
+              <div class="panes-inner-horizontal-margin">
+                <div class="left">
+                  Your balance is: <b><span id="topbar-balance">0</span> XLC</b><span id="topbar-locked"></span>
+                </div>
+                <div class="right" id="icons-area">
+                  <span id="heightStatus"></span>
+                  <span class="icon icon-arrows-ccw rotating" id="isSyncing"></span>
+                  <span class="icon icon-progress-1 low" data-tooltip="0 connections" id="networkStatus"></span>
+                </div>
+                <div class="clear"></div>
+              </div>
+            </div>
+            <div id="pane-network" class="app-panes pane-visible">
+              <div class="panes-panel">
+                <div id="pane-network-top">
+                  <div id="pane-network-receive">
+                    <h1>Your receive address</h1>
+                    <div class="form-group">
+						<div id="rec-wallet-address">
+							<div id="pane-network-receive-address"></div>
+						</div>
+						<div id="rec-wallet-address-copy">
+							<div id="rec-wallet-address-copied">Copied!</div>
+							<a onclick="fnGuiCopyAddress();" class="btn btn-mini btn-positive" href="javascript:void(0);"><span class="icon icon-clipboard"></span></a>
+						</div>
+						<div class="clear"></div>
+                    </div>
+                  </div>
+                  <div id="pane-network-txchart">
+                    <div><!-- class="half half-left"-->
+                      <h1>Last transactions</h1>
+                      <div>
+                        <table id="pane-network-lastTxTable" class="table-striped">
+                          <thead>
+                            <tr>
+                              <th>Time</th>
+                              <th>Hash</th>
+                              <th>Amount</th>
+                            </tr>
+                          </thead>
+                          <tbody id="lastTxs-table-body"></tbody>
+                        </table>
+                      </div>
+                    </div>
+                    <!--<div class="half">
+                      <h1>Balance</h1>
+                      <div>
+                        <div id="canvas-holder" style="width:100%">
+                          <canvas id="balance-chart">
+                        </div>
+                      </div>
+                    </div>-->
+                    <div class="clear"></div>
+                  </div>
+                </div>
+                <div id="pane-network-quicksend">
+                  <h1>Quick send</h1>
+
+                  <div class="form-group">
+                    <input id="form-qs-1" type="text" class="form-control" placeholder="Destination address">
+                  </div>
+                  <div class="form-group">
+                    <input id="form-qs-2" type="text" class="form-control" placeholder="Payment Id (Optional)">
+                  </div>
+                  <div class="form-group">
+                    <div class="left" id="quick-send-amount">
+                      <label>Amount:
+                        <input id="form-qs-3" type="number" step="any" min="0" value="0" class="form-control">
+                      </label>
+                    </div>
+                    <div class="left quick-send-note">
+                      <b>NOTE</b> anonymity level is automatically set to 0
+                    </div>
+                    <div class="clear"></div>
+                  </div>
+                  <div class="form-actions">
+                    <button onclick="fnGuiClearQuickSend();" class="btn btn-form btn-default">Clear</button>
+                    <button onclick="fnGuiSendQuickTransaction();" class="btn btn-form btn-positive">Send</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div id="pane-send" class="app-panes">
+              <div class="panes-panel">
+				<div id="pane-network-send">
+					<div id="sync-master-overlay"></div>
+					<div id="sync-master">
+						<div id="sync-title">
+							I'm synchronizing with the network.
+						</div>
+						<div id="sync-status">
+							Send feature will be active in <span id="sync-lock-blocks">0</span> blocks 
+						</div>
+					</div>
+                  <h1>Send transaction</h1>
+
+                  <div class="form-group">
+                    <input id="form-s-1" type="text" class="form-control" placeholder="Destination address">
+                  </div>
+                  <div class="form-group">
+                    <input id="form-s-2" type="text" class="form-control" placeholder="Payment Id (Optional)">
+                  </div>
+                  <div class="form-group">
+                    <input id="form-s-addressbook" maxlength="20" type="text" class="form-control" placeholder="Type a name here to save it into your address book">
+                  </div>
+                  <div class="form-group">
+                    <div class="left" id="send-amount">
+                      <label>Amount:
+                        <input id="form-s-3" type="number" step="any" min="0" value="0" class="form-control">
+                      </label>
+                    </div>
+                    <div class="left" id="send-fee">
+                      <label>Fee:
+                        <input id="form-s-4" type="number" step="0.01" min="0.01" max="1" value="0.01" class="form-control">
+                      </label>
+                    </div>
+                    <div class="left" id="send-mixin">
+                      <label>Anonymity:
+                        <input id="form-s-5" type="number" step="any" min="0" max="12" value="0" class="form-control">
+                      </label>
+                    </div>
+                    <div class="clear"></div>
+                  </div>
+                  <!--<div class="form-group">
+                    <div class="quick-send-note">
+						<div><b>Note:</b></div>
+						<div>
+						</div>
+                    </div>
+                    <div class="clear"></div>
+                  </div>-->
+                  <div class="form-actions">
+                    <button onclick="fnGuiClearSend();" class="btn btn-form btn-default">Clear</button>
+                    <button onclick="fnGuiSendTransaction();" class="btn btn-form btn-positive">Send</button>
+                    <button onclick="fnAddressBookAddBtn();" class="btn btn-form btn-primary">Save address</button>
+                  </div>
+                </div>
+                <div id="pane-network-send-addressbook">
+					<h1>Address Book</h1>
+					<div id="addressbook-container"><div class="addressbook-empty"><i>Address Book is empty!</i></div></div>
+                </div>
+                <div class="clear"></div>
+              </div>
+            </div>
+            <div id="pane-transactions" class="app-panes">
+              <div class="panes-panel">
+                <div id="pane-transactions-table">
+                  <h1>Transactions</h1>
+                  <div id="txs-scroll">
+					  <table class="table-striped">
+						<thead>
+						  <tr>
+							<th width="24px"></th>
+							<th width="140px">Time</th>
+							<th>Hash</th>
+							<th>Amount</th>
+						  </tr>
+						</thead>
+						<tbody id="txs-table-body"></tbody>
+					  </table>
+					</div>
+                </div>
+              </div>
+            </div>
+            <div id="pane-settings" class="app-panes">
+              <div class="panes-panel">
+                <h1>Settings</h1>
+                <div class="form-group">
+                  <label>Resync wallet from height 0</label>
+                  <div>
+                    <button onclick="fnGuiResetWallet();" class="btn btn-form btn-warning">Reset now</button>
+                  </div>
+                </div>
+                <!--<div class="form-group">
+                  <label>Import from private spend key</label>
+                  <div>
+                    <button onclick="fnGuiImportFromKeys();" class="btn btn-form btn-success">Import now</button>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label></label>
+                  <input type="email" class="form-control" placeholder="Email">
+                </div>
+                <select class="form-control">
+                  <option>Option one</option>
+                  <option>Option two</option>
+                  <option>Option three</option>
+                  <option>Option four</option>
+                  <option>Option five</option>
+                  <option>Option six</option>
+                  <option>Option seven</option>
+                  <option>Option eight</option>
+                </select>
+
+                <div class="checkbox">
+                  <label>
+                    <input type="checkbox"> This is a checkbox
+                  </label>
+                </div>
+                <div class="checkbox">
+                  <label>
+                    <input type="checkbox"> This is a checkbox too
+                  </label>
+                </div>
+
+                <div class="radio">
+                  <label>Enable Fast-Sync</label>
+                  <label>
+                    <input type="radio" name="fastsync">
+                    Yes
+                  </label>
+                  <label>
+                    <input type="radio" name="fastsync" checked>
+                    No
+                  </label>
+                </div>
+                <div class="form-actions">
+                  <button class="btn btn-form btn-positive" disabled>Save</button>
+                </div>-->
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
