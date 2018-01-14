@@ -4,48 +4,9 @@ var fs = require('fs');
 var binPath = __dirname + '/bin/';
 const { spawn } = require('child_process');
 const dialog = remote.dialog;
+const chokidar = require('chokidar');
+const https = require('https');
 var processLock = false;
-
-remote.getGlobal('wallet').updateDaemonStatus = function() {
-	if(processLock) return;
-	
-	processLock = true;
-	$.ajax({
-	url: 'http://127.0.0.1:19001/getinfo',
-	method: "GET",
-	dataType: 'json',
-	timeout: 3000,
-	success: function(data){
-		remote.getGlobal('wallet').blockCount = data.height;
-		remote.getGlobal('wallet').knownBlockCount = data.last_known_block_index;
-		remote.getGlobal('wallet').isSyncing = data.height < data.last_known_block_index - 1 || data.last_known_block_index == 0;
-		remote.getGlobal('wallet').peerCount = data.incoming_connections_count;
-		remote.getGlobal('wallet').daemonStatus = data.status;
-		remote.getGlobal('wallet').walletErrCount = 0;
-		processLock = false;
-		statusBarUpdater();
-	},
-    error: function(a,b,c){
-		processLock = false;
-		remote.getGlobal('wallet').daemonErrCount++;
-		
-		// We wait 12/15 secs before trying to respawn process
-		if(remote.getGlobal('wallet').daemonErrCount > 30){
-			// If daemon is crashed, we try to respawn it
-			try{
-				remote.getGlobal('wallet').killDaemon();
-				
-				remote.getGlobal('wallet').daemonProcess = null;
-				setTimeout(function(){
-					remote.getGlobal('wallet').spawnDaemon();
-				}, 2000);
-			}catch(e){
-				console.log(e);
-			}
-		}
-	}
-  });
-}
 
 remote.getGlobal('wallet').spawnDaemon = function() {
 	if(remote.getGlobal('wallet').daemonProcess != null) return;
@@ -57,14 +18,16 @@ remote.getGlobal('wallet').spawnDaemon = function() {
 	
 	console.log("Spawning Daemon...");
 	remote.getGlobal('wallet').daemonProcess = spawn(binPath + 'leviarcoind', [
-	  //'--db-threads', '1',
-	  '--db-max-open-files', '200',
-	  '--db-write-buffer-size', '512',
-	  '--db-read-cache-size', '20',
+	  //'--db-max-open-files', '200',
+	  //'--db-write-buffer-size', '512',
+	  //'--db-read-cache-size', '20',
+	  '--p2p-bind-ip', '127.0.0.1',
 	  '--data-dir', binPath + 'datadir',
-	  '--log-file', binPath + 'daemon.log',
-	  '--log-level', remote.getGlobal('wallet').logLevel,
-	  '--no-console'
+	  '--log-file', binPath + 'datadir/daemon.log',
+	  '--log-level', '0',
+	  '--add-priority-node', '46.101.28.201',
+	  '--no-console',
+	  '--gui-helpers'
 	]);
 	remote.getGlobal('wallet').daemonErrCount = 0;
 }
@@ -82,6 +45,26 @@ remote.getGlobal('wallet').killDaemon = function() {
 console.log('Starting daemon...');
 remote.getGlobal('wallet').spawnDaemon();
 
-setInterval(function() {
-  remote.getGlobal('wallet').updateDaemonStatus();
-}, 10000);
+var watcher = chokidar.watch('file', {
+  ignored: /[\/\\]\./, persistent: true
+});
+
+watcher.add(binPath + 'datadir/STATUS');
+watcher.on('change', function(path, stats) {
+	//console.log(stats);
+	if (stats.size == 0) return;
+	fs.readFile(path, 'utf8', function(err, contents) {
+		var daemonData = contents.split('|');
+		if (daemonData[0] !== undefined &&
+			daemonData[1] !== undefined &&
+			daemonData[2] !== undefined) {
+			remote.getGlobal('wallet').blockCount = daemonData[1];
+			remote.getGlobal('wallet').knownBlockCount = daemonData[0];
+			remote.getGlobal('wallet').isSyncing = daemonData[1] < daemonData[0] - 1 || daemonData[0] == 0;
+			remote.getGlobal('wallet').peerCount = daemonData[2];
+			remote.getGlobal('wallet').daemonStatus = "OK";
+			remote.getGlobal('wallet').walletErrCount = 0;
+			statusBarUpdater();
+		}
+	});
+});

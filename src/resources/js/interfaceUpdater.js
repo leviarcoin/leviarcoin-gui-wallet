@@ -2,35 +2,48 @@ var remote = window.require('electron').remote;
 var osInfo = window.require('os');
 const modal = window.require('electron-modal');
 const {clipboard} = require('electron');
-const cryptography = require('crypto');
-var algorithm = 'aes-256-ctr';
 
 // Tooltips
 const tt = require('electron-tooltip')
-tt({ position: 'bottom', style: {borderRadius: '5px'} })
+tt({ position: 'left', style: {borderRadius: '5px'} })
 
-var balanceUpdater = function() {
-  var $locked = $("#topbar-locked"),
-      lockedAmount = remote.getGlobal('wallet').locked / 100000000,
-      balance = remote.getGlobal('wallet').balance / 100000000;
+let balanceUpdater = async () => {
+	try {
+		var $locked = $("#topbar-locked"),
+			$usdVal = $("#topbar-usdVal"),
+			lockedAmount = remote.getGlobal('wallet').locked,
+			balance = remote.getGlobal('wallet').balance,
+			usdVal = parseFloat(remote.getGlobal('wallet').priceUsdValue);
+			
+		$("#topbar-balance").html(balance);
 
-  $("#topbar-balance").html(balance);
+		$locked.hide(0);
+		if(lockedAmount > 0){
+			$locked.html(" - Locked amount: <b>" + lockedAmount + " XLC</b>").show(0);
+		}else{
+			$locked.empty();
+		}
+		
+		if(usdVal == 0) {
+			if(remote.getGlobal('wallet').loadFromCache > 0) {
+				usdVal = remote.getGlobal('wallet').loadFromCache;
+			}
+		}
+		
+		if(usdVal != 0) {
+			var totalUsdValue = (balance + lockedAmount) * usdVal,
+				unitPrice = usdVal.toFixed(2);
+			if(totalUsdValue > 0) $usdVal.html(' - <b>$' + (totalUsdValue.toFixed(2)) + '</b> @ $' + unitPrice + '').show(0);
+		}
 
-  $locked.hide(0);
-  if(lockedAmount > 0){
-    $locked.html(" - Locked amount: <b>" + lockedAmount + " XLC</b>").show(0);
-  }else{
-    $locked.empty();
-  }
+		var addr = remote.getGlobal('wallet').address,
+		$addr = $("#pane-network-receive-address");
 
-  //config.data.datasets[0].data[0] = balance;
-  //config.data.datasets[0].data[1] = lockedAmount;
-  // Update chart
-  //window.myPie.update();
-
-  var addr = remote.getGlobal('wallet').address,
-      $addr = $("#pane-network-receive-address");
-  if(addr!='' && $addr.html() != addr) $addr.html(addr);
+		if($addr != null && $addr.length > 0) {
+			var addrInp = $addr.html();
+			if(addr!='' && addrInp != addr) $addr.html(addr);
+		}
+	}catch(e){}
 }
 
 let statusBarUpdater = async () => {
@@ -56,7 +69,7 @@ let statusBarUpdater = async () => {
                   .attr('data-tooltip', '0 connections');
   }else{
     if($isSyncing.hasClass('icon-cancel')) $isSyncing.removeClass('icon-cancel');
-
+	
 	if(remote.getGlobal('wallet').knownBlockCount == 0) {
 		if($isSyncing.hasClass('icon-check')) $isSyncing.removeClass('icon-check');
 		if($isSyncing.hasClass('rotating')) $isSyncing.removeClass('rotating');
@@ -89,10 +102,10 @@ let statusBarUpdater = async () => {
 	}
 
     var networkQuality = 'low', networkQt = 1;
-    if(remote.getGlobal('wallet').peerCount >= 5){
+    if(remote.getGlobal('wallet').peerCount >= 4){
       networkQuality = 'high';
       networkQt = 3
-    }else if(remote.getGlobal('wallet').peerCount >= 2) {
+    }else if(remote.getGlobal('wallet').peerCount >= 1) {
       networkQuality = 'mid';
       networkQt = 2
     }
@@ -101,20 +114,19 @@ let statusBarUpdater = async () => {
     $networkStatus.removeClass('low').removeClass('mid').removeClass('high')
                   .removeClass('icon-progress-1').removeClass('icon-progress-2').removeClass('icon-progress-3')
                   .addClass('icon-progress-' + networkQt).addClass(networkQuality)
-                  .removeAttr('data-tooltip')
                   .attr('data-tooltip', remote.getGlobal('wallet').peerCount + ' connection' + (remote.getGlobal('wallet').peerCount == 1 ? '': 's'));
 
     if(remote.getGlobal('wallet').blockCount > 0 && remote.getGlobal('wallet').knownBlockCount > 0){
       $heightStatus.show(0);
-      var height = remote.getGlobal('wallet').blockCount;
+      var height = remote.getGlobal('wallet').blockCount - 1;
       if(sync){
-        height += ' / ' + remote.getGlobal('wallet').knownBlockCount;
+        height += ' / ' + (remote.getGlobal('wallet').knownBlockCount - 1);
       }
       $heightStatus.html(height);
     }else{
       $heightStatus.hide(0);
     }
-
+    
     var remainingBlocks = remote.getGlobal('wallet').knownBlockCount - remote.getGlobal('wallet').blockCount;
     if (remainingBlocks < 0) remainingBlocks = 0;
     $("#sync-lock-blocks").html(remainingBlocks);
@@ -127,11 +139,11 @@ var showTxDetails = function(hash) {
 	var txs = remote.getGlobal('wallet').transactionsArray;
 	var tx = null;
 	for(var i in txs) if (txs[i].transactionHash == hash) tx = txs[i];
-
+	
 	//if(tx.transactionHash == hash) {
 		modal.open(__dirname + '/tx.html', {
 			width: 600,
-			height: 300,
+			height: 310,
 			parent: remote.win,
 			modal: true,
 			resizable: false,
@@ -169,12 +181,13 @@ var showTxDetails = function(hash) {
 
 let txsTableUpdater = async () => {
 	//$("#txs-table-body").empty();
-	var reversed = remote.getGlobal('wallet').transactionsArray,
+	var txs = remote.getGlobal('wallet').transactionsArray,
+		reversed = txs.reverse(),
 		lastTxs = [];
-
+	
 	// limited to 500 now
-	reversed = reversed.slice(0,500);
-
+	//reversed = reversed.slice(0,500);
+	
 	// Transactions
 	var status = '<span class="green icon icon-check"></span>',
 		htmlTbody = '';
@@ -183,7 +196,7 @@ let txsTableUpdater = async () => {
 		if(lastTxs.length <= 5) lastTxs.push(tx);
 		//var status = '<span class="orange icon icon-clock" data-tooltip="Unlocks in ' + tx.unlockTime + ' blocks"></span>';
 		/*if(tx.unlockTime <= 0) */
-		htmlTbody += '<tr onclick="showTxDetails(\'' + tx.transactionHash + '\')"><td>' + status + '</td><td>' + tx.fDate + '</td><td>' + tx.transactionHash.substring(0, 48).toUpperCase() + '...</td><td>' + tx.amount + '</td></tr>';
+		htmlTbody += '<tr ondblclick="showTxDetails(\'' + tx.transactionHash + '\')"><td>' + status + '</td><td>' + tx.fDate + '</td><td>' + tx.transactionHash.substring(0, 48).toUpperCase() + '...</td><td>' + tx.amount + '</td></tr>';
 	}
 	$("#txs-table-body").html(htmlTbody);
 
@@ -192,7 +205,7 @@ let txsTableUpdater = async () => {
 	htmlTbody = '';
 	for (var lastTxId in lastTxs) {
 		var tx = lastTxs[lastTxId];
-		htmlTbody += '<tr onclick="showTxDetails(\'' + tx.transactionHash + '\')"><td>' + tx.fDate + '</td><td>' + tx.transactionHash.substring(0, 24).toUpperCase() + '...</td><td>' + tx.amount + '</td></tr>';
+		htmlTbody += '<tr ondblclick="showTxDetails(\'' + tx.transactionHash + '\')"><td>' + tx.fDate + '</td><td>' + tx.transactionHash.substring(0, 36).toUpperCase() + '...</td><td>' + tx.amount + '</td></tr>';
 	}
 	$("#lastTxs-table-body").html(htmlTbody);
 }
@@ -213,13 +226,12 @@ var updateInterface = function() {
 	if (!remote.getGlobal('wallet').applicationLoad) {
 		$("#init-wallet").fadeOut(500);
 	} else {
-		if (remote.getGlobal('wallet').applicationInit) {
+		if(remote.getGlobal('wallet').askPassword) {
+			$("#ask-pwd-wallet").show(0);
+			$("#form-init-ask-1").focus();
+		}else if (remote.getGlobal('wallet').applicationInit) {
 			$("#init-new-wallet").show(0);
 			$("#init-preparing").fadeOut(500);
-
-			if(remote.getGlobal('wallet').askPassword) {
-				$("#ask-pwd-wallet").show(0);
-			}
 		}
 	}
 }
@@ -233,15 +245,15 @@ var fnGuiClearSend = function() {
 	$('#form-s-1, #form-s-2, #form-s-addressbook').val('');
 	$('#form-s-3').val(0);
 	$('#form-s-4').val(0.01);
-	$('#form-s-5').val(6);
+	$('#form-s-5').val(1);
 }
 
 var fnGuiSendQuickTransaction = function() {
 	var address = $("#form-qs-1").val();
 	var paymentId = $("#form-qs-2").val();
 	var amount = $("#form-qs-3").val();
-
-	remote.getGlobal('wallet').sendTransaction(address, paymentId, amount, 0);
+	
+	remote.getGlobal('wallet').sendTransaction(address, paymentId, amount, 1);
 }
 
 var fnGuiSendTransaction = function() {
@@ -250,19 +262,66 @@ var fnGuiSendTransaction = function() {
 	var amount = $("#form-s-3").val();
 	var mixin = $("#form-s-5").val();
 	var name = $("#form-s-addressbook").val();
-
+	
 	if(name != '') fnAddressBookAdd(name, address, paymentId);
-
+	
 	remote.getGlobal('wallet').sendTransaction(address, paymentId, amount, mixin);
 }
 
 var fnGuiResetWallet = function() {
+	if(remote.getGlobal('wallet').isSyncing) {
+		var win = remote.getCurrentWindow();
+		dialog.showMessageBox(win, {
+			type: 'info',
+			title: 'Reset',
+			message: "The wallet is not synchronized yet, please retry later.",
+			buttons: ["OK"]
+		});
+		return false;
+	}
+	
 	if(!confirm("Are you sure you want to reset wallet?")) return false;
-
+	
 	$("#info-wallet-title").html('Reset in progress. Please Wait.');
-	$("#info-wallet-subtitle").html('The operation may take some time...');
+	$("#info-wallet-subtitle").html('The operation may take some time...<br><br><div id="reset-height-status"></div>');
 	$("#info-wallet").fadeIn(500, function() {
 		remote.getGlobal('wallet').resetWallet();
+		// when reset file is deleted the process is done
+		var watcherResetHeight = chokidar.watch('file', {
+		  ignored: /[\/\\]\./,
+		  persistent: true,
+		  ignoreInitial: false
+		});
+		watcherResetHeight.add(binPath + remote.getGlobal('wallet').walletName + '.reset_');
+		watcherResetHeight.on('change', function(path, stats) {
+			/*var content = fs.readFileSync(path, "utf8");
+			try{
+				var status = content.split("|");
+				if(status[0] !== undefined && status[1] !== undefined){
+					if(parseInt(status[0]) == parseInt(status[1])){
+						fs.unlinkSync(path);
+					}
+				}
+				$("#reset-height-status").html("Height <b>" + status[0] + "</b> of <b>" + status[1] + "</b>");
+			}catch(e){}*/
+		});
+		watcherResetHeight.on('unlink', function(path, stats) {
+			$("#info-wallet").fadeOut(500, function(){
+				$("#info-wallet-title, #info-wallet-subtitle").empty();
+				
+			});
+			watcherResetHeight.close();
+			watcherResetHeight = null;
+		});
+		
+		setTimeout(function(){
+			$("#info-wallet").fadeOut(500, function(){
+				$("#info-wallet-title, #info-wallet-subtitle").empty();
+				
+			});
+			watcherResetHeight.close();
+			watcherResetHeight = null;
+		}, 5000);
 	});
 }
 
@@ -288,7 +347,7 @@ var fnGuiInitImportWallet = function() {
 		function (fileNames) {
 			if (fileNames === undefined) return;
 			var fileName = fileNames[0];
-
+			
 			// check extension
 			if (fileName.slice(-7) != '.wallet') {
 				var win = remote.getCurrentWindow();
@@ -300,7 +359,7 @@ var fnGuiInitImportWallet = function() {
 				});
 				return false;
 			}
-
+			
 			// check if wallet exists
 			var importedName = 'imported';
 			var destinationWallet = binPath + importedName + '.wallet';
@@ -310,185 +369,90 @@ var fnGuiInitImportWallet = function() {
 				destinationWallet = binPath + importedName + '.wallet';
 			}
 			console.log("File imported: " + destinationWallet);
-
+			
 			fs.createReadStream(fileName).pipe(fs.createWriteStream(destinationWallet));
 			remote.getGlobal('wallet').walletName = importedName;
 			remote.getGlobal('wallet').walletPassword = null;
 			var pwd = $("#form-init-import-1").val();
 			if(pwd != '') remote.getGlobal('wallet').walletPassword = pwd;
+			
 			console.log('Wallet "' + remote.getGlobal('wallet').walletName + '" imported, starting...');
-
+			
+			// kill wallet if is running
+			remote.getGlobal('wallet').applicationInit = true;
+			remote.getGlobal('wallet').killWallet();
+			remote.getGlobal('wallet').walletProcess = null;
+			
 			remote.getGlobal('wallet').balance = 0;
 			remote.getGlobal('wallet').locked = 0;
 			remote.getGlobal('wallet').transactionsArray = [];
 			balanceUpdater();
 			txsTableUpdater();
-
+			
 			// show loading imported wallet
 			$("#load-import-wallet").fadeIn(500, function(){
 				// hide all except import view
 				$("#init-wallet").hide(0);
-
+				
 				// step 1
 				$("#import-step-1").fadeIn(200);
-
-				// kill wallet if is running
-				remote.getGlobal('wallet').killWallet();
-				remote.getGlobal('wallet').walletProcess = null;
-
+				
 				setTimeout(function(){
 					// spawn wallet
-					remote.getGlobal('wallet').spawnWallet();
-
+					remote.getGlobal('wallet').applicationInit = false;
+					remote.getGlobal('wallet').walletProcessTryStart(true);
+					
 					setTimeout(function(){
-						var resetLoop = true;
-						var retry = 5;
-						while (resetLoop) {
-							$.ajax({
-								url: 'http://127.0.0.1:19080/json_rpc',
-								method: "POST",
-								data: JSON.stringify({
-									jsonrpc:"2.0",
-									id: "test",
-									method:"reset",
-									params: { }
-								}),
-								dataType: 'json',
-								async: false,
-								success: function(data){
-									resetLoop = false;
-									$("#import-step-2").fadeIn(200, function(){
-										// store wallet data sync
-										$.ajax({
-											url: 'http://127.0.0.1:19080/json_rpc',
-											method: "POST",
-											data: JSON.stringify({
-												jsonrpc:"2.0",
-												id: "test",
-												method:"getaddress",
-												params: { }
-											}),
-											dataType: 'json',
-											async: false,
-											success: function(data){
-												remote.getGlobal('wallet').address = data.result.address;
-
-												$("#import-step-2").fadeIn(200, function(){
-													// get address
-													var address = remote.getGlobal('wallet').address;
-													console.log("Public address imported: " + address);
-
-													var savePassword = $("#save-password-import")[0].checked;
-
-                          var encPwd = remote.getGlobal('wallet').encrypt(pwd);
-                          console.log(encPwd);
-
-													// save address.dat
-													if(savePassword)
-														var walletObj = {
-															walletName: remote.getGlobal('wallet').walletName,
-															walletPassword: encPwd,
-															walletHasPassword: pwd != '',
-															walletPasswordSaved: true
-														};
-													else
-														var walletObj = {
-															walletName: remote.getGlobal('wallet').walletName,
-															walletPassword: null,
-															walletHasPassword: pwd != '',
-															walletPasswordSaved: false
-														};
-
-													fs.writeFile("address.dat", JSON.stringify(walletObj), (err) => {
-														if (err) {
-															console.log("Error saving wallet name.");
-															console.log(err);
-															return;
-														}
-														console.log("Wallet file saved.");
-													});
-
-													// save walletName.address
-													fs.writeFile(binPath + remote.getGlobal('wallet').walletName + ".address", remote.getGlobal('wallet').address, (err) => {
-														if (err) {
-															console.log("Error saving wallet address.");
-															console.log(err);
-															return;
-														}
-														console.log("Wallet .address saved.");
-													});
-
-													remote.getGlobal('wallet').storeWalletDataSync();
-
-													// done
-													$("#import-step-3").fadeIn(200, function(){
-														setTimeout(function(){
-															$("#load-import-wallet").fadeOut(500, function(){
-																remote.getGlobal('wallet').applicationInit = false;
-																remote.getGlobal('wallet').applicationLoad = false;
-															});
-														}, 3000);
-													});
-												});
-											},
-											error: function(a,b,c){
-												retry--;
-												if(retry <= 0) {
-													resetLoop = false;
-													fs.unlinkSync(destinationWallet);
-													remote.getGlobal('wallet').applicationInit = true;
-													remote.getGlobal('wallet').applicationLoad = true;
-													remote.getGlobal('wallet').walletName = 'wallet';
-													remote.getGlobal('wallet').walletPassword = null;
-													remote.getGlobal('wallet').address = '';
-													$("#init-wallet").show(0);
-													$("#import-step-1, #import-step-2, #import-step-3").hide(0);
-													$("#load-import-wallet").hide(0);
-													$("#form-init-new-1, #form-init-import-1").val('');
-													retry = 5;
-
-													var win = remote.getCurrentWindow();
-													dialog.showMessageBox(win, {
-														type: 'error',
-														title: "Import Wallet",
-														message: "Something went wrong, please retry! Check password and wallet.",
-														buttons: ["OK"]
-													});
-													return false;
-												}
-											}
-										});
-									});
-								},
-								error: function(a,b,c){
-									retry--;
-									if(retry <= 0) {
-										resetLoop = false;
-										fs.unlinkSync(destinationWallet);
-										remote.getGlobal('wallet').applicationInit = true;
-										remote.getGlobal('wallet').applicationLoad = true;
-										remote.getGlobal('wallet').walletName = 'wallet';
-										remote.getGlobal('wallet').walletPassword = null;
-										remote.getGlobal('wallet').address = '';
-										$("#init-wallet").show(0);
-										$("#import-step-1, #import-step-2, #import-step-3").hide(0);
-										$("#load-import-wallet").hide(0);
-										$("#form-init-new-1, #form-init-import-1").val('');
-										retry = 5;
-
+						// get wallet address
+						var address = fs.readFileSync(binPath + remote.getGlobal('wallet').walletName + ".address");
+						remote.getGlobal('wallet').address = address;
+						
+						$("#import-step-2").fadeIn(200, function(){
+							console.log("Public address imported: " + address);
+							
+							var savePassword = $("#save-password-import")[0].checked;
+							
+							// save address.dat
+							if(savePassword)
+								var walletObj = {
+									walletName: remote.getGlobal('wallet').walletName,
+									walletPassword: remote.getGlobal('wallet').encrypt(pwd),
+									walletHasPassword: pwd != '',
+									walletPasswordSaved: true
+								};
+							else
+								var walletObj = {
+									walletName: remote.getGlobal('wallet').walletName,
+									walletPassword: null,
+									walletHasPassword: pwd != '',
+									walletPasswordSaved: false
+								};
+							
+							try{
+								fs.writeFileSync("address.dat", JSON.stringify(walletObj));
+								console.log("Wallet file saved.");
+							}catch(e){}
+							
+							// done
+							$("#import-step-3").fadeIn(200, function(){
+								setTimeout(function(){
+									$("#load-import-wallet").fadeOut(500, function(){
+										remote.getGlobal('wallet').applicationInit = false;
+										remote.getGlobal('wallet').applicationLoad = false;
+										
 										var win = remote.getCurrentWindow();
 										dialog.showMessageBox(win, {
-											type: 'error',
-											title: "Import Wallet",
-											message: "Something went wrong, please retry! Check password and wallet.",
+											type: 'info',
+											title: "Wallet imported",
+											message: "Please wait... Do not close the wallet.",
+											detail: "I will scan the blockchain to synchronize transactions. Your balance and transactions will show up in minutes.",
 											buttons: ["OK"]
 										});
-										return false;
-									}
-								}
+									});
+								}, 10000);
 							});
-						}
-					}, 10000);
+						});
+					}, 3000);
 				}, 7000);
 			});
 		}
@@ -501,9 +465,9 @@ var fnGuiInitCreateWallet = function() {
 	var savePassword = $("#save-password")[0].checked;
 	if($("#form-init-new-wallet-name").val() !== '')
 		remote.getGlobal('wallet').walletName = $("#form-init-new-wallet-name").val();
-
+	
 	if (!confirm("Do you want to create a new wallet?" + (pwd != '' ? " Don't forget your password." : ""))) return;
-
+	
 	// check if name is available
 	var importedName = remote.getGlobal('wallet').walletName;
 	var destinationWallet = binPath + importedName + '.wallet';
@@ -513,20 +477,25 @@ var fnGuiInitCreateWallet = function() {
 		destinationWallet = binPath + importedName + '.wallet';
 	}
 	remote.getGlobal('wallet').walletName = importedName;
-
+	
 	remote.getGlobal('wallet').balance = 0;
 	remote.getGlobal('wallet').locked = 0;
 	remote.getGlobal('wallet').transactionsArray = [];
 	balanceUpdater();
 	txsTableUpdater();
-
+	
 	if (!fs.existsSync(binPath + remote.getGlobal('wallet').walletName)) {
+		// clean log file
+		try{
+			fs.unlinkSync(binPath + 'simplewallet.log');
+		}catch(e){}
+		
 		var walletCreatorProcess = spawn(binPath + 'simplewallet', [
 			'--generate-new-wallet', binPath + remote.getGlobal('wallet').walletName,
-			'--password', (pwd != '' ? pwd : '')
-			//(pwd != '' ? '--password' : ''), (pwd != '' ? pwd : '')
+			'--password', (pwd != '' ? pwd : ''),
+			'--daemon-address', '127.0.0.1:19001'
 		]);
-
+		
 		$("#init-choose").fadeOut(100, function() {
 			$("#init-finishing").fadeIn(200);
 			setTimeout(function() {
@@ -537,7 +506,7 @@ var fnGuiInitCreateWallet = function() {
 				}
 				console.log('New wallet created!');
 				if (pwd != '') remote.getGlobal('wallet').walletPassword = pwd;
-
+				
 				if(saveAddress) {
 					if(savePassword)
 						var walletObj = {
@@ -553,7 +522,7 @@ var fnGuiInitCreateWallet = function() {
 							walletHasPassword: pwd != '',
 							walletPasswordSaved: false
 						};
-
+					
 					fs.writeFile("address.dat", JSON.stringify(walletObj), (err) => {
 						if (err) {
 							console.log("Error saving wallet name.");
@@ -563,7 +532,7 @@ var fnGuiInitCreateWallet = function() {
 						console.log("Wallet file saved.");
 					});
 				}
-
+				
 				// Wallet process start
 				remote.getGlobal('wallet').applicationInit = false;
 
@@ -571,6 +540,9 @@ var fnGuiInitCreateWallet = function() {
 					if (confirm("Do you want to open the new wallet?"))  {
 						remote.getGlobal('wallet').walletProcessTryStart();
 					}
+				}else{
+					remote.getGlobal('wallet').askPassword = false;
+					remote.getGlobal('wallet').applicationLoad = false;
 				}
 			}, 10000);
 		});
@@ -596,6 +568,10 @@ remote.getGlobal('wallet').aboutMenu = function() {
 	});
 }
 
+var fnGuiGoBack = function() {
+	remote.getGlobal('wallet').backFromNewWallet();
+}
+
 remote.getGlobal('wallet').backFromNewWallet = function() {
 	if(remote.getGlobal('wallet').newWalletBackup != {}){
 		remote.getGlobal('wallet').walletName = remote.getGlobal('wallet').newWalletBackup.walletName;
@@ -604,6 +580,7 @@ remote.getGlobal('wallet').backFromNewWallet = function() {
 	}
 	remote.getGlobal('wallet').applicationInit = false;
 	remote.getGlobal('wallet').applicationLoad = false;
+	$("#init-new-wallet").fadeOut(500);
 }
 
 remote.getGlobal('wallet').newWallet = function(force) {
@@ -612,28 +589,28 @@ remote.getGlobal('wallet').newWallet = function(force) {
 	}else{
 		remote.getGlobal('wallet').changeWallet = force;
 	}
-
+	
 	remote.getGlobal('wallet').newWalletBackup = {
 		walletName: remote.getGlobal('wallet').walletName,
 		walletPassword: remote.getGlobal('wallet').walletPassword,
 		address: remote.getGlobal('wallet').address
 	};
-
+	
 	remote.getGlobal('wallet').applicationInit = true;
 	remote.getGlobal('wallet').applicationLoad = true;
 	remote.getGlobal('wallet').askPassword = false;
 	remote.getGlobal('wallet').walletName = 'wallet';
 	remote.getGlobal('wallet').walletPassword = null;
 	remote.getGlobal('wallet').address = '';
-
+	
 	$("#init-finishing").hide(0);
 	$("#init-choose").show(0);
-
+	
 	$("#init-wallet").show(0);
 	$("#import-step-1, #import-step-2, #import-step-3").hide(0);
 	$("#load-import-wallet").hide(0);
 	$("#form-init-new-1, #form-init-import-1").val('');
-
+	
 	if(remote.getGlobal('wallet').changeWallet) {
 		$("#goback-new-wallet").show(0);
 	}else{
@@ -651,8 +628,16 @@ remote.getGlobal('wallet').backupWallet = function() {
 		},
 		function (fileName) {
 			if (fileName === undefined) return;
-
+			
 			var walletBackupFile = binPath + remote.getGlobal('wallet').walletName + '.wallet';
+			
+			fs.readdirSync(binPath).forEach(file => {
+				var len = remote.getGlobal('wallet').walletName.length + 11;
+				if (file.substr(0, len) == remote.getGlobal('wallet').walletName + ".wallet.tmp") {
+					walletBackupFile = file;
+				}
+			});
+			
 			console.log("Backup " + walletBackupFile + " To: " + fileName);
 			try{
 				fs.createReadStream(walletBackupFile).pipe(fs.createWriteStream(fileName));
@@ -667,7 +652,7 @@ remote.getGlobal('wallet').backupWallet = function() {
 				});
 				return false;
 			}
-
+			
 			dialog.showMessageBox(win, {
 				type: 'info',
 				title: 'Backup Wallet',
@@ -696,46 +681,132 @@ var fnGuiCopyAddress = function() {
 remote.getGlobal('wallet').closeWallet = function() {
 	remote.getGlobal('wallet').closingApp = true;
 	$("#close-wallet-proc").fadeIn(500);
-
+	
 	setTimeout(function(){
-		remote.getGlobal('wallet').storeWalletDataSync();
-
+		remote.getGlobal('wallet').storeWalletData();
+		
 		setTimeout(function(){
 			remote.getGlobal('wallet').killWallet();
-
+			
 			setTimeout(function(){
 				remote.getGlobal('wallet').killDaemon();
-
+				
 				setTimeout(function(){
 					remote.willQuitApp = true;
 					remote.app.quit();
 				}, 3000);
-			}, 6000);
-		}, 3000);
+			}, 2000);
+		}, 6000);
 	}, 1000);
 }
 
 var getKey = function () {
-  //console.log(osInfo.userInfo().username);
-	return osInfo.userInfo().username.toString()+"wallet^bwXvv8g5O%e!ntN2z^aN9Ev";
+	return osInfo.userInfo().username+"wallet^bwXvv8g5O%e!ntN2z^aN9Ev";
 }
 
-remote.getGlobal('wallet').encrypt = function(text){
-  if(text==null)return null;
-	var cipher = cryptography.createCipher(algorithm,getKey())
-	var crypted = cipher.update(text,'utf8','hex')
-	crypted += cipher.final('hex');
-	return crypted;
+var checkingUpdates = false;
+var timerUpdate = null;
+var checkUpdates = function() {
+	if(remote.getGlobal('wallet').applicationLoad || remote.getGlobal('wallet').applicationInit) return;
+	if (checkingUpdates) return;
+	checkingUpdates = true;
+	try{
+		var url = 'https://leviarcoin.org/checkupdates.php?os=' + remote.getGlobal('wallet').guiPlatform + '&v=' + remote.getGlobal('wallet').guiVersion;
+		https.get(url, res => {
+			res.setEncoding("utf8");
+			let body = "";
+			res.on("data", data => {
+				body += data;
+			});
+			res.on("end", () => {
+				try{
+					body = JSON.parse(body);
+					if (body.status) {
+						// show update
+						$("#info-wallet-title").html('New version available. v' + body.version);
+						$("#info-wallet-subtitle").html('It contains important new features that require an update. <br><br><div id="software-update-url"><a class="btn btn-positive" id="download-update" href="' + body.url + '">Download now</a></div><br><a class="btn btn-mini btn-default" id="disable-update" href="javascript:void(0);">Not now</a>');
+						$("#info-wallet").fadeIn(500);
+						$("#disable-update").unbind().click(function(){
+							$("#info-wallet").fadeOut(500, function(){
+								$("#info-wallet-title, #info-wallet-subtitle").empty();
+							});
+						});
+						$("#download-update").unbind().click(function(){
+							$("#info-wallet-subtitle").fadeOut(100, function(){
+								$("#info-wallet-title").html('Downloading.');
+								$("#info-wallet-subtitle").empty();
+								setTimeout(function(){
+									$("#info-wallet").fadeOut(500, function(){
+										$("#info-wallet-title, #info-wallet-subtitle").empty();
+									});
+								}, 2000);
+							});
+						});
+						clearInterval(timerUpdate);
+						timerUpdate = null;
+					}
+				}catch(e){
+					checkingUpdates = false;
+				}
+			});
+			res.on("error", () => {
+				checkingUpdates = false;
+			});
+		});
+	}catch(e){
+		checkingUpdates = false;
+	}
 }
 
-remote.getGlobal('wallet').decrypt = function(text){
-  if(text==null)return null;
-	var decipher = cryptography.createDecipher(algorithm,getKey())
-	var dec = decipher.update(text,'hex','utf8')
-	dec += decipher.final('utf8');
-	return dec;
+var checkingPrice = false;
+var priceUpdate = null;
+var priceTimeUpdate = 0;
+var checkPrice = function() {
+	if (checkingPrice) return;
+	var time = parseInt(new Date().getTime() / 1000);
+	if (priceTimeUpdate + 3600 > time) return;
+	checkingPrice = true;
+	try{
+		var url = 'https://leviarcoin.org/api/price.php';
+		https.get(url, res => {
+			res.setEncoding("utf8");
+			let body = "";
+			res.on("data", data => {
+				body += data;
+			});
+			res.on("end", () => {
+				try{
+					body = JSON.parse(body);
+					if (body[0].price_usd != undefined) {
+						remote.getGlobal('wallet').priceUsdValue = body[0].price_usd;
+						priceTimeUpdate = time;
+						balanceUpdater();
+						checkingPrice = false;
+					}
+				}catch(e) {
+					checkingPrice = false;
+				}
+			});
+			res.on("error", () => {
+				checkingPrice = false;
+			});
+		});
+	}catch(e){
+		checkingPrice = false;
+	}
 }
 
-setInterval(updateInterface, 5000);
+setInterval(updateInterface, 7000);
+timerUpdate = setInterval(checkUpdates, 120000);
+priceUpdate = setInterval(checkPrice, 360000);
 
 console.log('Interface updater started.');
+
+$(document).on('keypress', '#form-init-ask-1', function(e){
+	var code = (e.keyCode ? e.keyCode : e.which);
+	if(code == 13) fnGuiUnlockWallet();
+});
+
+$(document).ready(function(){
+	checkPrice();
+});

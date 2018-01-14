@@ -8,12 +8,19 @@ const Tray = electron.Tray;
 const remote = electron.remote;
 const modal = require('electron-modal');
 const dialog = electron.dialog;
+var osInfo = require('os');
+const cryptography = require('crypto');
+const crypto_key = osInfo.userInfo().username+"wallet^bwXvv8g5O%e!ntN2z^aN9Ev";
+const crypto_algorithm = 'aes-256-ctr';
 var resPath = __dirname + '/resources/';
 
 global.wallet = {
+	guiPlatform: 'mac',
+	guiVersion: 14,
+	clientVersion: 212,
 	logLevel: '2',
-	versionAbout: "GUI Wallet v0.1.2 - leviarcoind v2.1.2 - simplewallet v2.1.2",
-	versionCopy: "Copyright Leviar Dev Team. © 2017",
+	versionAbout: "GUI Wallet v0.1.4 - leviarcoind v2.1.2-r2 - simplewallet v2.1.2-r2",
+	versionCopy: "Copyright Leviar Dev Team. © 2018",
 	aboutMenu: null,
 	applicationLoad: true,
 	applicationInit: true,
@@ -26,8 +33,8 @@ global.wallet = {
 	encrypt: null,
 	decrypt: null,
 	changeWallet: false,
+	initSpawned: null,
 	spawnDaemon: null,
-	listenWallet: null,
 	spawnWallet: null,
 	closeWallet: null,
 	walletProcess: null,
@@ -63,7 +70,8 @@ global.wallet = {
 	transactions: {},
 	transactionsArray: [],
 	lastTransactions: {},
-	addressBook: {}
+	addressBook: {},
+	priceUsdValue: 0
 };
 let win;
 let tray;
@@ -164,7 +172,7 @@ function createWindow () {
 	}))
 
 	// Open the DevTools.
-	win.webContents.openDevTools({detach:true})
+	//win.webContents.openDevTools({detach:true})
 	win.on('closed', () => { win = null });
 	win.on('close', (e) => {
 		if (willQuitApp) {
@@ -187,6 +195,9 @@ app.on('activate', () => {
 })
 
 app.on('before-quit', (event) => {
+	global.wallet.killWallet();
+	global.wallet.killDaemon();
+
 	willQuitApp = true;
 	console.log('Closing wallet...');
 })
@@ -198,10 +209,13 @@ process.on('exit', function() {
 	console.log("Wallet closed.");
 });
 
-global.wallet.listenWallet = function() {
-	if(global.wallet.walletProcess==null) return;
-	global.wallet.walletProcess.stdout.on('data', function(data) {
-		//console.log('2stdout: ' + data);
-		//Here is where the output goes
-	});
+global.wallet.encrypt = function(text) {
+	var cipher = cryptography.createCipher(crypto_algorithm, crypto_key);
+    var crypted = cipher.update(text, 'utf8', 'hex') + cipher.final('hex');
+    return crypted;
+}
+
+global.wallet.decrypt = function(text) {
+	var decipher = cryptography.createDecipher(crypto_algorithm, crypto_key);
+	return decipher.update(text, 'hex', 'utf8') + decipher.final('utf8');
 }
