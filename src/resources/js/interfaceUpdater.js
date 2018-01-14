@@ -14,7 +14,7 @@ let balanceUpdater = async () => {
 			lockedAmount = remote.getGlobal('wallet').locked,
 			balance = remote.getGlobal('wallet').balance,
 			usdVal = parseFloat(remote.getGlobal('wallet').priceUsdValue);
-			
+
 		$("#topbar-balance").html(balance);
 
 		$locked.hide(0);
@@ -23,13 +23,13 @@ let balanceUpdater = async () => {
 		}else{
 			$locked.empty();
 		}
-		
+
 		if(usdVal == 0) {
 			if(remote.getGlobal('wallet').loadFromCache > 0) {
 				usdVal = remote.getGlobal('wallet').loadFromCache;
 			}
 		}
-		
+
 		if(usdVal != 0) {
 			var totalUsdValue = (balance + lockedAmount) * usdVal,
 				unitPrice = usdVal.toFixed(2);
@@ -69,7 +69,7 @@ let statusBarUpdater = async () => {
                   .attr('data-tooltip', '0 connections');
   }else{
     if($isSyncing.hasClass('icon-cancel')) $isSyncing.removeClass('icon-cancel');
-	
+
 	if(remote.getGlobal('wallet').knownBlockCount == 0) {
 		if($isSyncing.hasClass('icon-check')) $isSyncing.removeClass('icon-check');
 		if($isSyncing.hasClass('rotating')) $isSyncing.removeClass('rotating');
@@ -126,7 +126,7 @@ let statusBarUpdater = async () => {
     }else{
       $heightStatus.hide(0);
     }
-    
+
     var remainingBlocks = remote.getGlobal('wallet').knownBlockCount - remote.getGlobal('wallet').blockCount;
     if (remainingBlocks < 0) remainingBlocks = 0;
     $("#sync-lock-blocks").html(remainingBlocks);
@@ -139,7 +139,7 @@ var showTxDetails = function(hash) {
 	var txs = remote.getGlobal('wallet').transactionsArray;
 	var tx = null;
 	for(var i in txs) if (txs[i].transactionHash == hash) tx = txs[i];
-	
+
 	//if(tx.transactionHash == hash) {
 		modal.open(__dirname + '/tx.html', {
 			width: 600,
@@ -184,10 +184,10 @@ let txsTableUpdater = async () => {
 	var txs = remote.getGlobal('wallet').transactionsArray,
 		reversed = txs.reverse(),
 		lastTxs = [];
-	
+
 	// limited to 500 now
 	//reversed = reversed.slice(0,500);
-	
+
 	// Transactions
 	var status = '<span class="green icon icon-check"></span>',
 		htmlTbody = '';
@@ -252,7 +252,7 @@ var fnGuiSendQuickTransaction = function() {
 	var address = $("#form-qs-1").val();
 	var paymentId = $("#form-qs-2").val();
 	var amount = $("#form-qs-3").val();
-	
+
 	remote.getGlobal('wallet').sendTransaction(address, paymentId, amount, 1);
 }
 
@@ -262,9 +262,9 @@ var fnGuiSendTransaction = function() {
 	var amount = $("#form-s-3").val();
 	var mixin = $("#form-s-5").val();
 	var name = $("#form-s-addressbook").val();
-	
+
 	if(name != '') fnAddressBookAdd(name, address, paymentId);
-	
+
 	remote.getGlobal('wallet').sendTransaction(address, paymentId, amount, mixin);
 }
 
@@ -279,9 +279,9 @@ var fnGuiResetWallet = function() {
 		});
 		return false;
 	}
-	
+
 	if(!confirm("Are you sure you want to reset wallet?")) return false;
-	
+
 	$("#info-wallet-title").html('Reset in progress. Please Wait.');
 	$("#info-wallet-subtitle").html('The operation may take some time...<br><br><div id="reset-height-status"></div>');
 	$("#info-wallet").fadeIn(500, function() {
@@ -308,16 +308,16 @@ var fnGuiResetWallet = function() {
 		watcherResetHeight.on('unlink', function(path, stats) {
 			$("#info-wallet").fadeOut(500, function(){
 				$("#info-wallet-title, #info-wallet-subtitle").empty();
-				
+
 			});
 			watcherResetHeight.close();
 			watcherResetHeight = null;
 		});
-		
+
 		setTimeout(function(){
 			$("#info-wallet").fadeOut(500, function(){
 				$("#info-wallet-title, #info-wallet-subtitle").empty();
-				
+
 			});
 			watcherResetHeight.close();
 			watcherResetHeight = null;
@@ -347,7 +347,7 @@ var fnGuiInitImportWallet = function() {
 		function (fileNames) {
 			if (fileNames === undefined) return;
 			var fileName = fileNames[0];
-			
+
 			// check extension
 			if (fileName.slice(-7) != '.wallet') {
 				var win = remote.getCurrentWindow();
@@ -359,7 +359,7 @@ var fnGuiInitImportWallet = function() {
 				});
 				return false;
 			}
-			
+
 			// check if wallet exists
 			var importedName = 'imported';
 			var destinationWallet = binPath + importedName + '.wallet';
@@ -369,49 +369,52 @@ var fnGuiInitImportWallet = function() {
 				destinationWallet = binPath + importedName + '.wallet';
 			}
 			console.log("File imported: " + destinationWallet);
-			
+
 			fs.createReadStream(fileName).pipe(fs.createWriteStream(destinationWallet));
 			remote.getGlobal('wallet').walletName = importedName;
 			remote.getGlobal('wallet').walletPassword = null;
 			var pwd = $("#form-init-import-1").val();
 			if(pwd != '') remote.getGlobal('wallet').walletPassword = pwd;
-			
+
 			console.log('Wallet "' + remote.getGlobal('wallet').walletName + '" imported, starting...');
-			
+
 			// kill wallet if is running
 			remote.getGlobal('wallet').applicationInit = true;
 			remote.getGlobal('wallet').killWallet();
 			remote.getGlobal('wallet').walletProcess = null;
-			
+
 			remote.getGlobal('wallet').balance = 0;
 			remote.getGlobal('wallet').locked = 0;
 			remote.getGlobal('wallet').transactionsArray = [];
 			balanceUpdater();
 			txsTableUpdater();
-			
+
 			// show loading imported wallet
 			$("#load-import-wallet").fadeIn(500, function(){
 				// hide all except import view
 				$("#init-wallet").hide(0);
-				
+
 				// step 1
 				$("#import-step-1").fadeIn(200);
-				
+
 				setTimeout(function(){
 					// spawn wallet
 					remote.getGlobal('wallet').applicationInit = false;
 					remote.getGlobal('wallet').walletProcessTryStart(true);
-					
+
 					setTimeout(function(){
 						// get wallet address
-						var address = fs.readFileSync(binPath + remote.getGlobal('wallet').walletName + ".address");
+						var address = "";
+						try{
+							address = fs.readFileSync(binPath + remote.getGlobal('wallet').walletName + ".address");
+						}catch(e){}
 						remote.getGlobal('wallet').address = address;
-						
+
 						$("#import-step-2").fadeIn(200, function(){
 							console.log("Public address imported: " + address);
-							
+
 							var savePassword = $("#save-password-import")[0].checked;
-							
+
 							// save address.dat
 							if(savePassword)
 								var walletObj = {
@@ -427,19 +430,19 @@ var fnGuiInitImportWallet = function() {
 									walletHasPassword: pwd != '',
 									walletPasswordSaved: false
 								};
-							
+
 							try{
 								fs.writeFileSync("address.dat", JSON.stringify(walletObj));
 								console.log("Wallet file saved.");
 							}catch(e){}
-							
+
 							// done
 							$("#import-step-3").fadeIn(200, function(){
 								setTimeout(function(){
 									$("#load-import-wallet").fadeOut(500, function(){
 										remote.getGlobal('wallet').applicationInit = false;
 										remote.getGlobal('wallet').applicationLoad = false;
-										
+
 										var win = remote.getCurrentWindow();
 										dialog.showMessageBox(win, {
 											type: 'info',
@@ -465,9 +468,9 @@ var fnGuiInitCreateWallet = function() {
 	var savePassword = $("#save-password")[0].checked;
 	if($("#form-init-new-wallet-name").val() !== '')
 		remote.getGlobal('wallet').walletName = $("#form-init-new-wallet-name").val();
-	
+
 	if (!confirm("Do you want to create a new wallet?" + (pwd != '' ? " Don't forget your password." : ""))) return;
-	
+
 	// check if name is available
 	var importedName = remote.getGlobal('wallet').walletName;
 	var destinationWallet = binPath + importedName + '.wallet';
@@ -477,25 +480,25 @@ var fnGuiInitCreateWallet = function() {
 		destinationWallet = binPath + importedName + '.wallet';
 	}
 	remote.getGlobal('wallet').walletName = importedName;
-	
+
 	remote.getGlobal('wallet').balance = 0;
 	remote.getGlobal('wallet').locked = 0;
 	remote.getGlobal('wallet').transactionsArray = [];
 	balanceUpdater();
 	txsTableUpdater();
-	
+
 	if (!fs.existsSync(binPath + remote.getGlobal('wallet').walletName)) {
 		// clean log file
 		try{
 			fs.unlinkSync(binPath + 'simplewallet.log');
 		}catch(e){}
-		
+
 		var walletCreatorProcess = spawn(binPath + 'simplewallet', [
 			'--generate-new-wallet', binPath + remote.getGlobal('wallet').walletName,
 			'--password', (pwd != '' ? pwd : ''),
 			'--daemon-address', '127.0.0.1:19001'
 		]);
-		
+
 		$("#init-choose").fadeOut(100, function() {
 			$("#init-finishing").fadeIn(200);
 			setTimeout(function() {
@@ -506,7 +509,7 @@ var fnGuiInitCreateWallet = function() {
 				}
 				console.log('New wallet created!');
 				if (pwd != '') remote.getGlobal('wallet').walletPassword = pwd;
-				
+
 				if(saveAddress) {
 					if(savePassword)
 						var walletObj = {
@@ -522,7 +525,7 @@ var fnGuiInitCreateWallet = function() {
 							walletHasPassword: pwd != '',
 							walletPasswordSaved: false
 						};
-					
+
 					fs.writeFile("address.dat", JSON.stringify(walletObj), (err) => {
 						if (err) {
 							console.log("Error saving wallet name.");
@@ -532,7 +535,7 @@ var fnGuiInitCreateWallet = function() {
 						console.log("Wallet file saved.");
 					});
 				}
-				
+
 				// Wallet process start
 				remote.getGlobal('wallet').applicationInit = false;
 
@@ -589,28 +592,28 @@ remote.getGlobal('wallet').newWallet = function(force) {
 	}else{
 		remote.getGlobal('wallet').changeWallet = force;
 	}
-	
+
 	remote.getGlobal('wallet').newWalletBackup = {
 		walletName: remote.getGlobal('wallet').walletName,
 		walletPassword: remote.getGlobal('wallet').walletPassword,
 		address: remote.getGlobal('wallet').address
 	};
-	
+
 	remote.getGlobal('wallet').applicationInit = true;
 	remote.getGlobal('wallet').applicationLoad = true;
 	remote.getGlobal('wallet').askPassword = false;
 	remote.getGlobal('wallet').walletName = 'wallet';
 	remote.getGlobal('wallet').walletPassword = null;
 	remote.getGlobal('wallet').address = '';
-	
+
 	$("#init-finishing").hide(0);
 	$("#init-choose").show(0);
-	
+
 	$("#init-wallet").show(0);
 	$("#import-step-1, #import-step-2, #import-step-3").hide(0);
 	$("#load-import-wallet").hide(0);
 	$("#form-init-new-1, #form-init-import-1").val('');
-	
+
 	if(remote.getGlobal('wallet').changeWallet) {
 		$("#goback-new-wallet").show(0);
 	}else{
@@ -628,16 +631,16 @@ remote.getGlobal('wallet').backupWallet = function() {
 		},
 		function (fileName) {
 			if (fileName === undefined) return;
-			
+
 			var walletBackupFile = binPath + remote.getGlobal('wallet').walletName + '.wallet';
-			
+
 			fs.readdirSync(binPath).forEach(file => {
 				var len = remote.getGlobal('wallet').walletName.length + 11;
 				if (file.substr(0, len) == remote.getGlobal('wallet').walletName + ".wallet.tmp") {
 					walletBackupFile = file;
 				}
 			});
-			
+
 			console.log("Backup " + walletBackupFile + " To: " + fileName);
 			try{
 				fs.createReadStream(walletBackupFile).pipe(fs.createWriteStream(fileName));
@@ -652,7 +655,7 @@ remote.getGlobal('wallet').backupWallet = function() {
 				});
 				return false;
 			}
-			
+
 			dialog.showMessageBox(win, {
 				type: 'info',
 				title: 'Backup Wallet',
@@ -681,16 +684,16 @@ var fnGuiCopyAddress = function() {
 remote.getGlobal('wallet').closeWallet = function() {
 	remote.getGlobal('wallet').closingApp = true;
 	$("#close-wallet-proc").fadeIn(500);
-	
+
 	setTimeout(function(){
 		remote.getGlobal('wallet').storeWalletData();
-		
+
 		setTimeout(function(){
 			remote.getGlobal('wallet').killWallet();
-			
+
 			setTimeout(function(){
 				remote.getGlobal('wallet').killDaemon();
-				
+
 				setTimeout(function(){
 					remote.willQuitApp = true;
 					remote.app.quit();
