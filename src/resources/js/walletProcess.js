@@ -2,13 +2,13 @@ var remote = require('electron').remote;
 var fs = require('fs');
 var osInfo = window.require('os');
 var binPath = __dirname + '/bin/';
-var filepath = "address.dat";
+var filepath = binPath + "address.dat";
 var cryptography = require('crypto');
 
 fs.readFile(filepath, 'utf8', function (err, data) {
 	if (err) {
 		console.log("Error loading wallet. Create new one?");
-		
+
 		// Reset vars
 		remote.getGlobal('wallet').applicationLoad = true;
 		remote.getGlobal('wallet').applicationInit = true;
@@ -24,7 +24,7 @@ fs.readFile(filepath, 'utf8', function (err, data) {
 	try {
 		if (walletObj.walletName != null && walletObj.walletName != '') {
 			remote.getGlobal('wallet').walletName = walletObj.walletName;
-			
+
 			// clean files
 			try{
 				fs.unlinkSync(binPath + walletObj.walletName + '.txcast');
@@ -42,7 +42,7 @@ fs.readFile(filepath, 'utf8', function (err, data) {
 			remote.getGlobal('wallet').applicationInit = false;
 		}else if(!walletObj.walletHasPassword){
 			remote.getGlobal('wallet').walletPassword = null;
-			
+
 			remote.getGlobal('wallet').applicationLoad = false;
 			remote.getGlobal('wallet').applicationInit = false;
 		}else{
@@ -81,11 +81,11 @@ var txResultAnswer = function(path, stats, tx) {
 					htmlTbody = '';
 				htmlTbody += '<tr><td>' + status + '</td><td>' + tx.fDate + '</td><td>' + tx.transactionHash.substring(0, 48).toUpperCase() + '...</td><td>' + tx.amount + '</td></tr>';
 				$("#txs-table-body").prepend(htmlTbody);
-				
+
 				htmlTbody = '<tr><td>' + tx.fDate + '</td><td>' + tx.transactionHash.substring(0, 36).toUpperCase() + '...</td><td>' + tx.amount + '</td></tr>';
 				if($("#lastTxs-table-body tr").length >= 6) $("#lastTxs-table-body tr").last().remove();
 				$("#lastTxs-table-body").prepend(htmlTbody);
-				
+
 				dialog.showMessageBox(win, {
 					type: 'info',
 					title: 'Send',
@@ -127,9 +127,9 @@ remote.getGlobal('wallet').sendTransaction = function(address, paymentId, amount
 
 	// now fixed at 0.01 XLC
 	fee = 0.01;
-	
+
 	var win = remote.getCurrentWindow();
-	
+
 	var balance = remote.getGlobal('wallet').balance;
 	if((parseFloat(amount) + parseFloat(fee)) > parseFloat(balance)) {
 		dialog.showMessageBox(win, {
@@ -141,14 +141,14 @@ remote.getGlobal('wallet').sendTransaction = function(address, paymentId, amount
 		});
 		return;
 	}
-	
+
 	var txCastFile = binPath + remote.getGlobal('wallet').walletName + '.txcast';
 	fee = parseFloat(fee);
-	
+
 	var txString = mixin + '|' + address + '|' + amount + '|' + paymentId + '|' + fee;
-	
+
 	fs.writeFileSync(txCastFile, txString);
-	
+
 	var date = new Date(),
 		day = "0" + date.getDate(),
 		month = "0" + (date.getMonth()+1),
@@ -164,7 +164,7 @@ remote.getGlobal('wallet').sendTransaction = function(address, paymentId, amount
 			transactionHash: '',
 			fee: (fee)
 		};
-	
+
 	// start watcher
 	watcherTxResult = chokidar.watch('file', {
 	  ignored: /[\/\\]\./,
@@ -179,12 +179,12 @@ remote.getGlobal('wallet').sendTransaction = function(address, paymentId, amount
 
 remote.getGlobal('wallet').resetWallet = function() {
 	// create Reset file
-	
+
 	try{
 		// Clean store file
 		fs.unlinkFileSync(binPath + remote.getGlobal('wallet').walletName + '.reset_');
 	}catch(e){}
-	
+
 	try{
 		// Create store file
 		fs.writeFileSync(binPath + remote.getGlobal('wallet').walletName + '.reset', "");
@@ -193,19 +193,19 @@ remote.getGlobal('wallet').resetWallet = function() {
 }
 
 remote.getGlobal('wallet').updateWalletData = function() {
-	
+
 }
 
 remote.getGlobal('wallet').storeWalletData = function() {
 	// Wait daemon and sync tx
 	var knownBlockCount = remote.getGlobal('wallet').knownBlockCount;
 	if(knownBlockCount <= 1) return;
-	
+
 	try{
 		// Clean store file
 		fs.unlinkFileSync(binPath + remote.getGlobal('wallet').walletName + '.save_');
 	}catch(e){}
-	
+
 	try{
 		// Create store file
 		fs.writeFileSync(binPath + remote.getGlobal('wallet').walletName + '.save', "");
@@ -215,10 +215,10 @@ remote.getGlobal('wallet').storeWalletData = function() {
 remote.getGlobal('wallet').spawnWallet = function(isImport) {
 	if(isImport == undefined || isImport == null) isImport = false;
 	if(remote.getGlobal('wallet').walletProcess !== null) return;
-	
+
 	var tempFile = false,
 		tempFileName = '';
-	
+
 	fs.readdirSync(binPath).forEach(file => {
 		var len = remote.getGlobal('wallet').walletName.length + 11;
 		if (file.substr(0, len) == remote.getGlobal('wallet').walletName + ".wallet.tmp") {
@@ -226,7 +226,7 @@ remote.getGlobal('wallet').spawnWallet = function(isImport) {
 			tempFile = true;
 		}
 	});
-	
+
 	try{
 		var stats = fs.statSync(binPath + remote.getGlobal('wallet').walletName + ".wallet");
 		if(stats != undefined && stats != null) {
@@ -238,12 +238,12 @@ remote.getGlobal('wallet').spawnWallet = function(isImport) {
 			}
 		}
 	}catch(e){}
-	
+
 	// clean log file
 	try{
 		fs.unlinkSync(binPath + 'simplewallet.log');
 	}catch(e){}
-	
+
 	var pwd = remote.getGlobal('wallet').walletPassword;
 	remote.getGlobal('wallet').walletProcess = spawn(binPath + 'simplewallet', [
 		'--set_log', '4',
@@ -255,13 +255,13 @@ remote.getGlobal('wallet').spawnWallet = function(isImport) {
 		'--wallet-file', binPath + remote.getGlobal('wallet').walletName,
 		'--password', (pwd != null ? pwd : '')
 	]);
-	
+
 	$("#ask-pwd-wallet").fadeOut(500, function(){
 		$(".unlock-wal-pw").show(0);
 		$("#unlock-loading").hide(0);
 		$("#form-init-ask-1").val('');
 	});
-	
+
 	setTimeout(function() {
 		fs.readFile(binPath + 'simplewallet.log', 'utf8', function (err, data) {
 			try{
@@ -270,7 +270,7 @@ remote.getGlobal('wallet').spawnWallet = function(isImport) {
 					remote.getGlobal('wallet').killWallet();
 					remote.getGlobal('wallet').walletProcessStarted = false;
 					remote.getGlobal('wallet').walletProcess = null;
-					
+
 					//password wrong / or wallet error
 					var win = remote.getCurrentWindow();
 					dialog.showMessageBox(win, {
@@ -279,7 +279,7 @@ remote.getGlobal('wallet').spawnWallet = function(isImport) {
 						message: "There was an error loading wallet. Check your password.",
 						buttons: ["OK"]
 					});
-					
+
 					//remote.getGlobal('wallet').newWallet(false);
 					remote.getGlobal('wallet').applicationLoad = true;
 					remote.getGlobal('wallet').applicationInit = true;
@@ -372,7 +372,7 @@ function readTxs(path) {
 				}
 				fullTxsData = txsArr;
 			}
-			
+
 			if(!fs.existsSync(path + "f") && fullTxsData.length > 0){
 				var content = txsToFile(fullTxsData);
 				fs.writeFileSync(path + "f", content);
@@ -402,7 +402,7 @@ function readTxs(path) {
 								paymentId: ''
 							};
 							if(txData.length > 6) txSave.paymentId = txData[6];
-							
+
 							var found = false;
 							for(var idx in fullTxsData){
 								if(fullTxsData[idx].transactionHash == txSave.transactionHash) {
@@ -412,15 +412,15 @@ function readTxs(path) {
 							}
 							if(!found) fullTxsData.push(txSave);
 						}
-						
+
 						//sort array
 						fullTxsData.sort(function(a, b) {
 							return a.fDate >= b.fDate ? 1 : -1;
 						});
-						
+
 						remote.getGlobal('wallet').transactionsArray = fullTxsData;
 						txsTableUpdater();
-						
+
 						// save diff
 						if(fullTxsData.length > 0){
 							var content = txsToFile(fullTxsData);
@@ -446,27 +446,27 @@ remote.getGlobal('wallet').initSpawned = function() {
 		fs.unlinkSync(binPath + remote.getGlobal('wallet').walletName + '.reset_');
 		fs.unlinkSync(binPath + remote.getGlobal('wallet').walletName + '.save');
 		fs.unlinkSync(binPath + remote.getGlobal('wallet').walletName + '.save_');
-		
+
 		// Read values
 		readBalance(binPath + remote.getGlobal('wallet').walletName + '.status');
 		readTxs(binPath + remote.getGlobal('wallet').walletName + '.txs');
 	}catch(e) {}
-	
+
 	setInterval(function(){readBalance(binPath + remote.getGlobal('wallet').walletName + '.status');}, 10000);
 	setTimeout(function(){readTxs(binPath + remote.getGlobal('wallet').walletName + '.txs');}, 5000);
-	
+
 	var watcherBalance = chokidar.watch('file', {
 	  ignored: /[\/\\]\./,
 	  persistent: true,
 	  ignoreInitial: false
-	  
+
 	});
 	watcherBalance.add(binPath + remote.getGlobal('wallet').walletName + '.status');
 	watcherBalance.on('change', function(path, stats) {
 		if (stats.size == 0) return;
 		readBalance(path);
 	});
-	
+
 	var watcherTxs = chokidar.watch('file', {
 	  ignored: /[\/\\]\./,
 	  persistent: true,
@@ -482,12 +482,12 @@ remote.getGlobal('wallet').initSpawned = function() {
 remote.getGlobal('wallet').walletProcessTryStart = function(isImport) {
 	if(isImport == undefined || isImport == null) isImport = false;
 	if(remote.getGlobal('wallet').applicationInit) return;
-	
+
 	remote.getGlobal('wallet').initSpawned();
-	
+
 	console.log('Starting wallet process...');
 	remote.getGlobal('wallet').spawnWallet(isImport);
-	
+
 	fs.readFile(binPath + remote.getGlobal('wallet').walletName + ".address", 'utf8', function (err, data) {
 		try {
 			remote.getGlobal('wallet').address = data;
@@ -496,20 +496,20 @@ remote.getGlobal('wallet').walletProcessTryStart = function(isImport) {
 			return;
 		}
 	});
-	
+
 	balanceUpdater();
-	
+
 	setInterval(function() {
 		if (remote.getGlobal('wallet').closingApp) return;
 		remote.getGlobal('wallet').storeWalletData();
 	}, 240000);
-	
+
 	remote.getGlobal('wallet').walletProcessStarted = true;
 	$("#init-wallet").fadeOut(500);
 }
 
 setInterval(function() {
 	if (remote.getGlobal('wallet').walletProcessStarted) return;
-	
+
 	remote.getGlobal('wallet').walletProcessTryStart();
 }, 5000);

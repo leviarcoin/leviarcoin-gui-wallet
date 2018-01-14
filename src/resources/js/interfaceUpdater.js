@@ -40,6 +40,12 @@ let balanceUpdater = async () => {
 		$addr = $("#pane-network-receive-address");
 
 		if($addr != null && $addr.length > 0) {
+			if(addr == ''){
+				try{
+					addr = fs.readFileSync(binPath + remote.getGlobal('wallet').walletName + ".address");
+				}catch(e){}
+			}
+
 			var addrInp = $addr.html();
 			if(addr!='' && addrInp != addr) $addr.html(addr);
 		}
@@ -408,10 +414,10 @@ var fnGuiInitImportWallet = function() {
 						try{
 							address = fs.readFileSync(binPath + remote.getGlobal('wallet').walletName + ".address");
 						}catch(e){}
-						remote.getGlobal('wallet').address = address;
 
 						$("#import-step-2").fadeIn(200, function(){
 							console.log("Public address imported: " + address);
+							remote.getGlobal('wallet').address = address;
 
 							var savePassword = $("#save-password-import")[0].checked;
 
@@ -432,7 +438,7 @@ var fnGuiInitImportWallet = function() {
 								};
 
 							try{
-								fs.writeFileSync("address.dat", JSON.stringify(walletObj));
+								fs.writeFileSync(binPath + "address.dat", JSON.stringify(walletObj));
 								console.log("Wallet file saved.");
 							}catch(e){}
 
@@ -526,7 +532,7 @@ var fnGuiInitCreateWallet = function() {
 							walletPasswordSaved: false
 						};
 
-					fs.writeFile("address.dat", JSON.stringify(walletObj), (err) => {
+					fs.writeFile(binPath + "address.dat", JSON.stringify(walletObj), (err) => {
 						if (err) {
 							console.log("Error saving wallet name.");
 							console.log(err);

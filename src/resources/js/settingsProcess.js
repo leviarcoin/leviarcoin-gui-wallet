@@ -1,20 +1,19 @@
 var remote = require('electron').remote;
-const Store = require('electron-store');
-const store = new Store();
+//const Store = require('electron-store');
+//const store = new Store();
 var processLock = false;
-//var jsAssets = 'resources/js/';
-//var worker = new Worker(jsAssets + 'saveSettings.js');
 
 let fnSaveSettings = async () => {
-	if(remote.getGlobal('wallet').applicationLoad || remote.getGlobal('wallet').applicationInit) return;
+	/*if(remote.getGlobal('wallet').applicationLoad || remote.getGlobal('wallet').applicationInit) return;
 	console.log("Start SaveSettings.");
 	
 	var balance = remote.getGlobal('wallet').balance;
 	var locked = remote.getGlobal('wallet').locked;
 	var fee = remote.getGlobal('wallet').fee;
-	var txs = remote.getGlobal('wallet').transactionsArray;
+	//var txs = remote.getGlobal('wallet').transactionsArray;
 	
-	if(txs.length > 100) txs = [];
+	//if(txs.length > 100) txs = [];
+	var txs = [];
 	
 	var settings = {
 		balance: balance,
@@ -22,15 +21,15 @@ let fnSaveSettings = async () => {
 		fee: fee,
 		txs: txs
 	};
-	//worker.postMessage(settings);
 	try{
 		store.set("settingsData", settingsObj);
 	}catch(e){}
 	console.log("Settings saved");
+	*/
 }
 
 var fnLoadSettings = function() {
-	try {
+	/*try {
 		var settingsObj = store.get("settingsData");
 		if(settingsObj == null){
 			var settingsObj = {
@@ -54,13 +53,14 @@ var fnLoadSettings = function() {
 		return;
 	}
 	console.log("Settings loaded.");
+	*/
 }
 
 console.log('Settings manager started.');
 // Read settings
 $(document).ready(function(){
-	fnLoadSettings();
-	setInterval(function() {
-		fnSaveSettings();
-	}, 30000);
+	//fnLoadSettings();
+	//setInterval(function() {
+	//	fnSaveSettings();
+	//}, 60000);
 });

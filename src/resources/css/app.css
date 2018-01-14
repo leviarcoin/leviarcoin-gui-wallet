@@ -368,6 +368,11 @@
 	font-weight:700px!important;
 }
 
+#usdvalueunit{
+	font-size:11px;
+	line-height: 12px;
+}
+
 #info-wallet{
 	position:fixed;
 	top:0;
@@ -523,6 +528,9 @@
 	margin-right:40px;
 }
 
+#goback-new-wallet .btn { text-decoration: none; }
+#goback-new-wallet .btn:hover { cursor: pointer; }
+
 #ask-pwd-wallet{
 	position:fixed;
 	top:0;
@@ -546,3 +554,24 @@
 	height:450px;
 	overflow:auto;
 }
+
+#software-update-url{
+	font-size:16px;
+	font-weight:300;
+	line-height:20px;
+}
+
+#reset-height-status{
+	font-size:20px;
+	font-weight:300;
+	line-height:24px;
+}
+
+#reset-height-status b{
+	font-size:21px;
+	font-weight:700;
+	line-height:24px;
+}
+
+#info-wallet-subtitle .btn {text-decoration:none;}
+#info-wallet-subtitle .btn:hover {cursor:pointer;}
