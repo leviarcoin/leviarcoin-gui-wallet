@@ -1,0 +1,2 @@
+var GUI_VERSION = "18.06"
+var GUI_MONERO_VERSION = "18.06"
