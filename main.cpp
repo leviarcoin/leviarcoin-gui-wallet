@@ -238,7 +238,7 @@ int main(int argc, char *argv[])
 
 
     if (!moneroAccountsRootDir.empty()) {
-        QString moneroAccountsDir = moneroAccountsRootDir.at(0) + "/Monero/wallets";
+        QString moneroAccountsDir = moneroAccountsRootDir.at(0) + "/Leviar/wallets";
         engine.rootContext()->setContextProperty("moneroAccountsDir", moneroAccountsDir);
     }
 
