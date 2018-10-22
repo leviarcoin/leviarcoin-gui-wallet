@@ -38,18 +38,7 @@ Item {
 
     ListModel {
         id: testModel
-        ListElement { head: "Leviar || #xlc"; foot: "<b>@btcplanet</b> Duis turpis arcu, varius nec rutrum in, adipiscing at enim. Donec quis consequat ipsum," }
-        ListElement { head: "Leviar || #xlc"; foot: "<b>@btcplanet</b> Duis turpis arcu, varius nec rutrum in, adipiscing at enim. Donec quis consequat ipsum," }
-        ListElement { head: "Leviar || #xlc"; foot: "<b>@btcplanet</b> Duis turpis arcu, varius nec rutrum in, adipiscing at enim. Donec quis consequat ipsum," }
-        ListElement { head: "Leviar || #xlc"; foot: "<b>@btcplanet</b> Duis turpis arcu, varius nec rutrum in, adipiscing at enim. Donec quis consequat ipsum," }
-        ListElement { head: "Leviar || #xlc"; foot: "<b>@btcplanet</b> Duis turpis arcu, varius nec rutrum in, adipiscing at enim. Donec quis consequat ipsum," }
-        ListElement { head: "Leviar || #xlc"; foot: "<b>@btcplanet</b> Duis turpis arcu, varius nec rutrum in, adipiscing at enim. Donec quis consequat ipsum," }
-        ListElement { head: "Leviar || #xlc"; foot: "<b>@btcplanet</b> Duis turpis arcu, varius nec rutrum in, adipiscing at enim. Donec quis consequat ipsum," }
-        ListElement { head: "Leviar || #xlc"; foot: "<b>@btcplanet</b> Duis turpis arcu, varius nec rutrum in, adipiscing at enim. Donec quis consequat ipsum," }
-        ListElement { head: "Leviar || #xlc"; foot: "<b>@btcplanet</b> Duis turpis arcu, varius nec rutrum in, adipiscing at enim. Donec quis consequat ipsum," }
-        ListElement { head: "Leviar || #xlc"; foot: "<b>@btcplanet</b> Duis turpis arcu, varius nec rutrum in, adipiscing at enim. Donec quis consequat ipsum," }
-        ListElement { head: "Leviar || #xlc"; foot: "<b>@btcplanet</b> Duis turpis arcu, varius nec rutrum in, adipiscing at enim. Donec quis consequat ipsum," }
-        ListElement { head: "Leviar || #xlc"; foot: "<b>@btcplanet</b> Duis turpis arcu, varius nec rutrum in, adipiscing at enim. Donec quis consequat ipsum," }
+        ListElement { head: "Leviar || #xlc"; foot: "Lorem ipsum doret" }
     }
 
     property int inAnimDur: 250

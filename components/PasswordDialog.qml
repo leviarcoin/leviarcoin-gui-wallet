@@ -38,6 +38,7 @@ import "../components" as MoneroComponents
 Item {
     id: root
     visible: false
+    z: parent.z + 2
 
     property alias password: passwordInput.text
     property string walletName
@@ -48,6 +49,7 @@ Item {
     signal closeCallback()
 
     function open(walletName) {
+        inactiveOverlay.visible = true // draw appwindow inactive
         root.walletName = walletName ? walletName : ""
         leftPanel.enabled = false
         middlePanel.enabled = false
@@ -59,6 +61,7 @@ Item {
     }
 
     function close() {
+        inactiveOverlay.visible = false
         leftPanel.enabled = true
         middlePanel.enabled = true
         titleBar.enabled = true
@@ -67,7 +70,7 @@ Item {
     }
 
     ColumnLayout {
-        z: bg.z + 1
+        z: inactiveOverlay.z + 1
         id: mainLayout
         spacing: 10
         anchors { fill: parent; margins: 35 * scaleRatio }
@@ -105,6 +108,8 @@ Item {
                 leftPadding: 10
                 topPadding: 10
                 color: MoneroComponents.Style.defaultFontColor
+                selectionColor: MoneroComponents.Style.dimmedFontColor
+                selectedTextColor: MoneroComponents.Style.defaultFontColor
 
                 background: Rectangle {
                     radius: 2
@@ -122,6 +127,7 @@ Item {
                     }
                 }
 
+                Keys.enabled: root.visible
                 Keys.onReturnPressed: {
                     root.close()
                     root.accepted()
@@ -165,12 +171,5 @@ Item {
             }
 
         }
-    }
-    Rectangle {
-        id: bg
-
-        anchors.fill: parent
-        color: "black"
-        opacity: 0.8
     }
 }

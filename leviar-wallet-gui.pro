@@ -1,3 +1,8 @@
+# qml components require at least QT 5.7.0
+lessThan (QT_MAJOR_VERSION, 5) | lessThan (QT_MINOR_VERSION, 7) {
+  error("Can't build with Qt $${QT_VERSION}. Use at least Qt 5.7.0")
+}
+
 TEMPLATE = app
 
 QT += qml quick widgets
@@ -5,11 +10,13 @@ QT += qml quick widgets
 WALLET_ROOT=$$PWD/monero
 
 CONFIG += c++11 link_pkgconfig
-packagesExist(libpcsclite) {
-    PKGCONFIG += libpcsclite
+packagesExist(hidapi-libusb) {
+    PKGCONFIG += hidapi-libusb
 }
-QMAKE_CXXFLAGS += -fPIC -fstack-protector
-QMAKE_LFLAGS += -fstack-protector
+!win32 {
+    QMAKE_CXXFLAGS += -fPIC -fstack-protector -fstack-protector-strong
+    QMAKE_LFLAGS += -fstack-protector -fstack-protector-strong
+}
 
 # cleaning "auto-generated" leviar directory on "make distclean"
 QMAKE_DISTCLEAN += -r $$WALLET_ROOT
@@ -45,6 +52,7 @@ HEADERS += \
     src/libwalletqt/Subaddress.h \
     src/zxcvbn-c/zxcvbn.h \
     src/libwalletqt/UnsignedTransaction.h \
+    Logger.h \
     MainApp.h
 
 SOURCES += main.cpp \
@@ -70,6 +78,7 @@ SOURCES += main.cpp \
     src/libwalletqt/Subaddress.cpp \
     src/zxcvbn-c/zxcvbn.c \
     src/libwalletqt/UnsignedTransaction.cpp \
+    Logger.cpp \
     MainApp.cpp
 
 CONFIG(DISABLE_PASS_STRENGTH_METER) {
@@ -87,6 +96,7 @@ lupdate_only {
 SOURCES = *.qml \
           components/*.qml \
           pages/*.qml \
+          pages/settings/*.qml \
           wizard/*.qml \
           wizard/*js
 }
@@ -108,7 +118,8 @@ LIBS += -L$$WALLET_ROOT/lib \
         -llmdb \
         -lepee \
         -lunbound \
-        -leasylogging \
+        -lsodium \
+        -leasylogging
 }
 
 android {
@@ -118,13 +129,14 @@ android {
         -llmdb \
         -lepee \
         -lunbound \
+        -lsodium \
         -leasylogging
 }
 
 
 
-QMAKE_CXXFLAGS += -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=1 -Wformat -Wformat-security -fstack-protector -fstack-protector-strong
-QMAKE_CFLAGS += -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=1 -Wformat -Wformat-security -fstack-protector -fstack-protector-strong
+QMAKE_CXXFLAGS += -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=1 -Wformat -Wformat-security
+QMAKE_CFLAGS += -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=1 -Wformat -Wformat-security
 
 ios {
     message("Host is IOS")
@@ -137,6 +149,7 @@ ios {
         -llmdb \
         -lepee \
         -lunbound \
+        -lsodium \
         -leasylogging
 
     LIBS+= \
@@ -236,11 +249,15 @@ win32 {
         -licutu \
         -liconv \
         -lssl \
+        -lsodium \
         -lcrypto \
         -Wl,-Bdynamic \
+        -lwinscard \
         -lws2_32 \
         -lwsock32 \
         -lIphlpapi \
+        -lcrypt32 \
+        -lhidapi \
         -lgdi32
     
     !contains(QMAKE_TARGET.arch, x86_64) {
@@ -280,6 +297,8 @@ linux {
         -lboost_program_options \
         -lssl \
         -llmdb \
+        -lsodium \
+        -lhidapi-libusb \
         -lcrypto
 
     if(!android) {
@@ -287,7 +306,7 @@ linux {
             -Wl,-Bdynamic \
             -lGL
     }
-    # currently monero has an issue with "static" build and linunwind-dev,
+    # currently leviar has an issue with "static" build and linunwind-dev,
     # so we link libunwind-dev only for non-Ubuntu distros
     CONFIG(libunwind_off) {
         message(Building without libunwind)
@@ -310,8 +329,8 @@ macx {
         -L/usr/local/opt/openssl/lib \
         -L/usr/local/opt/boost/lib \
         -lboost_serialization \
+        -lhidapi \
         -lboost_thread-mt \
-        -lboost_system-mt \
         -lboost_system \
         -lboost_date_time \
         -lboost_filesystem \
@@ -319,6 +338,7 @@ macx {
         -lboost_chrono \
         -lboost_program_options \
         -lssl \
+        -lsodium \
         -lcrypto \
         -ldl
     LIBS+= -framework PCSC
@@ -328,18 +348,7 @@ macx {
 
 
 # translation stuff
-TRANSLATIONS =  \ # English is default language, no explicit translation file
-                $$PWD/translations/leviar.ts \ # translation source (copy this file when creating a new translation)
-                $$PWD/translations/leviar_pt-br.ts \ # Portuguese (Brazil)
-                $$PWD/translations/leviar_de.ts \ # German
-                $$PWD/translations/leviar_eo.ts \ # Esperanto
-                $$PWD/translations/leviar_es.ts \ # Spanish
-                $$PWD/translations/leviar_fr.ts \ # French
-                $$PWD/translations/leviar_it.ts \ # Italian
-                $$PWD/translations/leviar_nl.ts \ # Dutch
-                $$PWD/translations/leviar_pl.ts \ # Polish
-                $$PWD/translations/leviar_ru.ts \ # Russian
-                $$PWD/translations/leviar_pt-pt.ts \ # Portuguese (Portugal)
+TRANSLATIONS = $$files($$PWD/translations/monero-core_*.ts)
 
 CONFIG(release, debug|release) {
     DESTDIR = release/bin
@@ -352,14 +361,7 @@ CONFIG(release, debug|release) {
 #    LANGREL_OPTIONS = -markuntranslated "MISS_TR "
 }
 
-TARGET_FULL_PATH = $$OUT_PWD/$$DESTDIR
-TRANSLATION_TARGET_DIR = $$TARGET_FULL_PATH/translations
-
-macx {
-    TARGET_FULL_PATH = $$sprintf("%1/%2/%3.app", $$OUT_PWD, $$DESTDIR, $$TARGET)
-    TRANSLATION_TARGET_DIR = $$TARGET_FULL_PATH/Contents/Resources/translations
-}
-
+TRANSLATION_TARGET_DIR = $$OUT_PWD/translations
 
 !ios {
     isEmpty(QMAKE_LUPDATE) {
@@ -386,11 +388,27 @@ macx {
 
     QMAKE_EXTRA_TARGETS += langupd deploy deploy_win
     QMAKE_EXTRA_COMPILERS += langrel
+
+    # Compile an initial version of translation files when running qmake
+    # the first time and generate the resource file for translations.
+    !exists($$TRANSLATION_TARGET_DIR) {
+        mkpath($$TRANSLATION_TARGET_DIR)
+    }
+    qrc_entry = "<RCC>"
+    qrc_entry += '  <qresource prefix="/">'
+    write_file($$TRANSLATION_TARGET_DIR/translations.qrc, qrc_entry)
+    for(tsfile, TRANSLATIONS) {
+        qmfile = $$TRANSLATION_TARGET_DIR/$$basename(tsfile)
+        qmfile ~= s/.ts$/.qm/
+        system($$LANGREL $$LANGREL_OPTIONS $$tsfile -qm $$qmfile)
+        qrc_entry = "    <file>$$basename(qmfile)</file>"
+        write_file($$TRANSLATION_TARGET_DIR/translations.qrc, qrc_entry, append)
+    }
+    qrc_entry = "  </qresource>"
+    qrc_entry += "</RCC>"
+    write_file($$TRANSLATION_TARGET_DIR/translations.qrc, qrc_entry, append)
+    RESOURCES += $$TRANSLATION_TARGET_DIR/translations.qrc
 }
-
-
-
-
 
 
 # Update: no issues with the "slow link process" anymore,
@@ -413,7 +431,7 @@ macx {
 }
 
 win32 {
-    deploy.commands += windeployqt $$sprintf("%1/%2/%3.exe", $$OUT_PWD, $$DESTDIR, $$TARGET) -release -qmldir=$$PWD
+    deploy.commands += windeployqt $$sprintf("%1/%2/%3.exe", $$OUT_PWD, $$DESTDIR, $$TARGET) -release -no-translations -qmldir=$$PWD
     # Win64 msys2 deploy settings
     contains(QMAKE_HOST.arch, x86_64) {
         deploy.commands += $$escape_expand(\n\t) $$PWD/windeploy_helper.sh $$DESTDIR
@@ -425,7 +443,7 @@ linux:!android {
 }
 
 android{
-    deploy.commands += make install INSTALL_ROOT=$$DESTDIR && androiddeployqt --input android-libmonero-wallet-gui.so-deployment-settings.json --output $$DESTDIR --deployment bundled --android-platform android-21 --jdk /usr/lib/jvm/java-8-openjdk-amd64 -qmldir=$$PWD
+    deploy.commands += make install INSTALL_ROOT=$$DESTDIR && androiddeployqt --input android-libleviar-wallet-gui.so-deployment-settings.json --output $$DESTDIR --deployment bundled --android-platform android-21 --jdk /usr/lib/jvm/java-8-openjdk-amd64 -qmldir=$$PWD
 }
 
 
@@ -440,7 +458,8 @@ DISTFILES += \
 
 
 # windows application icon
-RC_FILE = leviar.rc
+RC_ICONS = images/appicon.ico
 
-# mac application icon
+# mac Info.plist & application icon
+QMAKE_INFO_PLIST = $$PWD/share/Info.plist
 ICON = $$PWD/images/appicon.icns

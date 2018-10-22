@@ -306,7 +306,7 @@ Item {
                         color: {
                             if(!styleData.visibleMonth) return "#DBDBDB"
                             if(dayArea.pressed) return "#FFFFFF"
-                            if(styleData.today) return "#2895FC"
+                            if(styleData.today) return "#FF6C3B"
                             return "#4A4848"
                         }
                     }

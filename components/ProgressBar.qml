@@ -37,7 +37,7 @@ Rectangle {
     property string syncType // Wallet or Daemon
     property string syncText: qsTr("%1 blocks remaining: ").arg(syncType)
     visible: false
-    color: "black"
+    color: "transparent"
 
     function updateProgress(currentBlock,targetBlock, blocksToSync, statusTxt){
         if(targetBlock > 0) {
@@ -67,7 +67,7 @@ Rectangle {
             font.pixelSize: 13 * scaleRatio
             font.bold: true
             color: "white"
-            text: qsTr("Synchronizing %1").arg(syncType)
+            text: qsTr("Synchronizing %1").arg(syncType) + translationManager.emptyString
             height: 18 * scaleRatio
         }
 
@@ -100,11 +100,11 @@ Rectangle {
                 anchors.bottom: parent.bottom
                 anchors.left: parent.left
                 height: bar.height
-                property int maxWidth: bar.width - 4 * scaleRatio
+                property int maxWidth: bar.width * scaleRatio
                 width: (maxWidth * fillLevel) / 100
                 radius: 8
                 // could change color based on progressbar status; if(item.fillLevel < 99 )
-                color: "#41B7FC"
+                color: "#0089f9"
             }
 
             Rectangle {

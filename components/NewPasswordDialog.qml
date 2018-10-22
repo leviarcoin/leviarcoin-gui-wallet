@@ -38,13 +38,7 @@ import "../components" as MoneroComponents
 Item {
     id: root
     visible: false
-    Rectangle {
-        id: bg
-        z: parent.z + 1
-        anchors.fill: parent
-        color: "black"
-        opacity: 0.8
-    }
+    z: parent.z + 2
 
     property alias password: passwordInput1.text
 
@@ -54,6 +48,7 @@ Item {
     signal closeCallback()
 
     function open() {
+        inactiveOverlay.visible = true
         leftPanel.enabled = false
         middlePanel.enabled = false
         titleBar.enabled = false
@@ -65,6 +60,7 @@ Item {
     }
 
     function close() {
+        inactiveOverlay.visible = false
         leftPanel.enabled = true
         middlePanel.enabled = true
         titleBar.enabled = true
@@ -86,7 +82,7 @@ Item {
     }
 
     ColumnLayout {
-        z: bg.z + 1
+        z: inactiveOverlay.z + 1
         id: mainLayout
         spacing: 10
         anchors { fill: parent; margins: 35 * scaleRatio }

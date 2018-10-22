@@ -26,6 +26,8 @@
 // STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
 // THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// @TODO: Remove component after wizard redesign
+
 import QtQuick 2.0
 
 Item {
@@ -71,11 +73,7 @@ Item {
             //radius: 2
             width: row.x
 
-            color: {
-                if(item.fillLevel < 5) return "#FF6C3C"
-                if(item.fillLevel < 13) return "#AAFFBB"
-                return "#36B25C"
-            }
+            color: "#FF6C3C"
 
             Timer {
                 interval: 500

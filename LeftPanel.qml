@@ -72,6 +72,7 @@ Rectangle {
         else if(pos === "Sign") menuColumn.previousButton = signButton
         else if(pos === "Settings") menuColumn.previousButton = settingsButton
         else if(pos === "Advanced") menuColumn.previousButton = advancedButton
+        else if(pos === "Keys") menuColumn.previousButton = keysButton
 
         menuColumn.previousButton.checked = true
     }
@@ -90,12 +91,12 @@ Rectangle {
         z: 1
     }
 
-    // card with monero logo
+    // card with Leviar logo
     Column {
         visible: true
         z: 2
         id: column1
-        height: 200
+        height: 210
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.top: parent.top
@@ -110,10 +111,10 @@ Rectangle {
                 anchors.leftMargin: 20
                 anchors.verticalCenter: parent.verticalCenter
                 height: 490 * scaleRatio
-                width: 259 * scaleRatio
+                width: 260 * scaleRatio
 
                 Image {
-                    width: 259; height: 170
+                    width: 260; height: 170
                     fillMode: Image.PreserveAspectFit
                     source: "images/card-background.png"
                 }
@@ -128,7 +129,7 @@ Rectangle {
                     anchors.leftMargin: 192
                     font.bold: true
                     font.pixelSize: 12
-                    color: "#f33434"
+                    color: "#35acf2"
                 }
 
                 Text {
@@ -141,7 +142,7 @@ Rectangle {
                     anchors.rightMargin: 8
                     font.pixelSize: 12
                     font.bold: true
-                    color: "#2895fc"
+                    color: "#22bdff"
                 }
             }
 
@@ -246,18 +247,16 @@ Rectangle {
         anchors.right: parent.right
         anchors.bottom: parent.bottom
         anchors.top: (isMobile)? parent.top : column1.bottom
-        anchors.topMargin: (isMobile)? 0 : 32
         color: "transparent"
 
 
         Flickable {
             id:flicker
-            contentHeight: (progressBar.visible)? menuColumn.height + separator.height + 
-                networkStatus.height + progressBar.height + daemonProgressBar.height : 
-                menuColumn.height + separator.height + networkStatus.height
-            anchors.fill: parent
+            contentHeight: menuColumn.height
+            anchors.top: parent.top
+            anchors.bottom: networkStatus.top
+            width: parent.width
             clip: true
-
 
         Column {
 
@@ -267,34 +266,6 @@ Rectangle {
             anchors.top: parent.top
             clip: true
             property var previousButton: transferButton
-
-            // ------------- Dashboard tab ---------------
-
-            /*
-            MenuButton {
-                id: dashboardButton
-                anchors.left: parent.left
-                anchors.right: parent.right
-                text: qsTr("Dashboard") + translationManager.emptyString
-                symbol: qsTr("D") + translationManager.emptyString
-                dotColor: "#FFE00A"
-                checked: true
-                onClicked: {
-                    parent.previousButton.checked = false
-                    parent.previousButton = dashboardButton
-                    panel.dashboardClicked()
-                }
-            }
-
-
-            Rectangle {
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.leftMargin: 16
-                color: dashboardButton.checked || transferButton.checked ? "#1C1C1C" : "#313131"
-                height: 1
-            }
-            */
 
             // top border
             Rectangle {
@@ -478,7 +449,7 @@ Rectangle {
                 anchors.left: parent.left
                 anchors.right: parent.right
                 text: qsTr("Shared RingDB") + translationManager.emptyString
-                symbol: qsTr("S") + translationManager.emptyString
+                symbol: qsTr("G") + translationManager.emptyString
                 dotColor: "#FFD781"
                 under: advancedButton
                 onClicked: {
@@ -578,7 +549,7 @@ Rectangle {
             anchors.rightMargin: 0
             anchors.bottom: networkStatus.top;
             height: 10 * scaleRatio
-            color: "black"
+            color: "transparent"
         }
 
         NetworkStatusItem {

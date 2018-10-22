@@ -63,7 +63,7 @@ Rectangle {
                 id: addressLine
                 labelText: qsTr("Address") + translationManager.emptyString
                 error: true;
-                placeholderText: qsTr("L...") + translationManager.emptyString
+                placeholderText: qsTr("L..") + translationManager.emptyString
             }
         }
 

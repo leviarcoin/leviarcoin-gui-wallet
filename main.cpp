@@ -54,6 +54,7 @@
 #include "Subaddress.h"
 #include "model/SubaddressModel.h"
 #include "wallet/api/wallet2_api.h"
+#include "Logger.h"
 #include "MainApp.h"
 
 // IOS exclusions
@@ -65,39 +66,84 @@
 #include "QrCodeScanner.h"
 #endif
 
-void messageHandler(QtMsgType type, const QMessageLogContext &context, const QString &msg)
-{
-    // Send all message types to logger
-    Monero::Wallet::debug("qml", msg.toStdString());
-}
+bool isIOS = false;
+bool isAndroid = false;
+bool isWindows = false;
+bool isDesktop = false;
 
 int main(int argc, char *argv[])
 {
-    Monero::Utils::onStartup();
+    // platform dependant settings
+#if !defined(Q_OS_ANDROID) && !defined(Q_OS_IOS)
+    bool isDesktop = true;
+#elif defined(Q_OS_ANDROID)
+    bool isAndroid = true;
+#elif defined(Q_OS_IOS)
+    bool isIOS = true;
+#endif
+#ifdef Q_OS_WIN
+    bool isWindows = true;
+#endif
+
+    // disable "QApplication: invalid style override passed" warning
+    if (isDesktop) putenv((char*)"QT_STYLE_OVERRIDE=fusion");
+#ifdef Q_OS_LINUX
+    // force platform xcb
+    if (isDesktop) putenv((char*)"QT_QPA_PLATFORM=xcb");
+#endif
+
 //    // Enable high DPI scaling on windows & linux
 //#if !defined(Q_OS_ANDROID) && QT_VERSION >= 0x050600
 //    QGuiApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
 //    qDebug() << "High DPI auto scaling - enabled";
 //#endif
 
-    // Log settings
-    Monero::Wallet::init(argv[0], "leviar-wallet-gui");
-//    qInstallMessageHandler(messageHandler);
-
     MainApp app(argc, argv);
 
-    qDebug() << "app startd";
-
-    app.setApplicationName("leviar");
+    app.setApplicationName("leviar-core");
     app.setOrganizationDomain("leviar.io");
-    app.setOrganizationName("leviar-team");
+    app.setOrganizationName("leviar");
 
-    #if defined(Q_OS_LINUX) && !defined(Q_OS_ANDROID)
-    app.setWindowIcon(QIcon(":/images/appicon.ico"));
-    #endif
+#if defined(Q_OS_LINUX)
+    if (isDesktop) app.setWindowIcon(QIcon(":/images/appicon.ico"));
+#endif
 
     filter *eventFilter = new filter;
     app.installEventFilter(eventFilter);
+
+    QCommandLineParser parser;
+    QCommandLineOption logPathOption(QStringList() << "l" << "log-file",
+        QCoreApplication::translate("main", "Log to specified file"),
+        QCoreApplication::translate("main", "file"));
+    parser.addOption(logPathOption);
+    parser.addHelpOption();
+    parser.process(app);
+
+    Monero::Utils::onStartup();
+
+    // Log settings
+    const QString logPath = getLogPath(parser.value(logPathOption));
+    Monero::Wallet::init(argv[0], "leviar-wallet-gui", logPath.toStdString().c_str(), true);
+    qInstallMessageHandler(messageHandler);
+
+
+    // loglevel is configured in main.qml. Anything lower than
+    // qWarning is not shown here.
+    qWarning().noquote() << "app startd" << "(log: " + logPath + ")";
+
+    // screen settings
+    // Mobile is designed on 128dpi
+    qreal ref_dpi = 128;
+    QRect geo = QApplication::desktop()->availableGeometry();
+    QRect rect = QGuiApplication::primaryScreen()->geometry();
+    qreal dpi = QGuiApplication::primaryScreen()->logicalDotsPerInch();
+    qreal physicalDpi = QGuiApplication::primaryScreen()->physicalDotsPerInch();
+    qreal calculated_ratio = physicalDpi/ref_dpi;
+
+    qWarning().nospace() << "Qt:" << QT_VERSION_STR << " | screen: " << rect.width()
+                         << "x" << rect.height() << " - dpi: " << dpi << " - ratio:"
+                         << calculated_ratio;
+
 
     // registering types for QML
     qmlRegisterType<clipboardAdapter>("moneroComponents.Clipboard", 1, 0, "Clipboard");
@@ -169,55 +215,34 @@ int main(int argc, char *argv[])
     engine.rootContext()->setContextProperty("translationManager", TranslationManager::instance());
 
     engine.addImageProvider(QLatin1String("qrcode"), new QRCodeImageProvider());
-    const QStringList arguments = QCoreApplication::arguments();
 
     engine.rootContext()->setContextProperty("mainApp", &app);
 
+    engine.rootContext()->setContextProperty("qtRuntimeVersion", qVersion());
+
+    engine.rootContext()->setContextProperty("walletLogPath", logPath);
+
 // Exclude daemon manager from IOS
 #ifndef Q_OS_IOS
+    const QStringList arguments = (QStringList) QCoreApplication::arguments().at(0);
     DaemonManager * daemonManager = DaemonManager::instance(&arguments);
     engine.rootContext()->setContextProperty("daemonManager", daemonManager);
 #endif
 
-//  export to QML monero accounts root directory
+//  export to QML leviar accounts root directory
 //  wizard is talking about where
 //  to save the wallet file (.keys, .bin), they have to be user-accessible for
-//  backups - I reckon we save that in My Documents\Monero Accounts\ on
-//  Windows, ~/Monero Accounts/ on nix / osx
-    bool isWindows = false;
-    bool isIOS = false;
-    bool isMac = false;
-    bool isAndroid = false;
-#ifdef Q_OS_WIN
-    isWindows = true;
+//  backups - I reckon we save that in My Documents\Leviar Accounts\ on
+//  Windows, ~/Leviar Accounts/ on nix / osx
+#if defined(Q_OS_WIN) || defined(Q_OS_IOS)
     QStringList moneroAccountsRootDir = QStandardPaths::standardLocations(QStandardPaths::DocumentsLocation);
-#elif defined(Q_OS_IOS)
-    isIOS = true;
-    QStringList moneroAccountsRootDir = QStandardPaths::standardLocations(QStandardPaths::DocumentsLocation);
-#elif defined(Q_OS_UNIX)
+#else
     QStringList moneroAccountsRootDir = QStandardPaths::standardLocations(QStandardPaths::HomeLocation);
-#endif
-#ifdef Q_OS_MAC
-    isMac = true;
-#endif
-#ifdef Q_OS_ANDROID
-    isAndroid = true;
 #endif
 
     engine.rootContext()->setContextProperty("isWindows", isWindows);
     engine.rootContext()->setContextProperty("isIOS", isIOS);
     engine.rootContext()->setContextProperty("isAndroid", isAndroid);
-
-    // screen settings
-    // Mobile is designed on 128dpi
-    qreal ref_dpi = 128;
-    QRect geo = QApplication::desktop()->availableGeometry();
-    QRect rect = QGuiApplication::primaryScreen()->geometry();
-    qreal height = qMax(rect.width(), rect.height());
-    qreal width = qMin(rect.width(), rect.height());
-    qreal dpi = QGuiApplication::primaryScreen()->logicalDotsPerInch();
-    qreal physicalDpi = QGuiApplication::primaryScreen()->physicalDotsPerInch();
-    qreal calculated_ratio = physicalDpi/ref_dpi;
 
     engine.rootContext()->setContextProperty("screenWidth", geo.width());
     engine.rootContext()->setContextProperty("screenHeight", geo.height());
@@ -227,17 +252,9 @@ int main(int argc, char *argv[])
     engine.rootContext()->setContextProperty("scaleRatio", 1);
 #endif
 
-    qDebug() << "available width: " << geo.width();
-    qDebug() << "available height: " << geo.height();
-    qDebug() << "devicePixelRatio: " << app.devicePixelRatio();
-    qDebug() << "screen height: " << height;
-    qDebug() << "screen width: " << width;
-    qDebug() << "screen logical dpi: " << dpi;
-    qDebug() << "screen Physical dpi: " << physicalDpi;
-    qDebug() << "screen calculated ratio: " << calculated_ratio;
 
-
-    if (!moneroAccountsRootDir.empty()) {
+    if (!moneroAccountsRootDir.empty())
+    {
         QString moneroAccountsDir = moneroAccountsRootDir.at(0) + "/Leviar/wallets";
         engine.rootContext()->setContextProperty("moneroAccountsDir", moneroAccountsDir);
     }
@@ -245,12 +262,10 @@ int main(int argc, char *argv[])
 
     // Get default account name
     QString accountName = qgetenv("USER"); // mac/linux
-    if (accountName.isEmpty()){
+    if (accountName.isEmpty())
         accountName = qgetenv("USERNAME"); // Windows
-    }
-    if (accountName.isEmpty()) {
-        accountName = "My monero Account";
-    }
+    if (accountName.isEmpty())
+        accountName = "My Leviar Account";
 
     engine.rootContext()->setContextProperty("defaultAccountName", accountName);
     engine.rootContext()->setContextProperty("applicationDirectory", QApplication::applicationDirPath());
@@ -277,14 +292,15 @@ int main(int argc, char *argv[])
 
 #ifdef WITH_SCANNER
     QObject *qmlCamera = rootObject->findChild<QObject*>("qrCameraQML");
-    if( qmlCamera ){
-        qDebug() << "QrCodeScanner : object found";
+    if (qmlCamera)
+    {
+        qWarning() << "QrCodeScanner : object found";
         QCamera *camera_ = qvariant_cast<QCamera*>(qmlCamera->property("mediaObject"));
         QObject *qmlFinder = rootObject->findChild<QObject*>("QrFinder");
         qobject_cast<QrCodeScanner*>(qmlFinder)->setSource(camera_);
-    } else {
-        qDebug() << "QrCodeScanner : something went wrong !";
     }
+    else
+        qCritical() << "QrCodeScanner : something went wrong !";
 #endif
 
     QObject::connect(eventFilter, SIGNAL(sequencePressed(QVariant,QVariant)), rootObject, SLOT(sequencePressed(QVariant,QVariant)));

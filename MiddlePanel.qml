@@ -37,6 +37,7 @@ import QtGraphicalEffects 1.0
 import moneroComponents.Wallet 1.0
 
 import "./pages"
+import "./pages/settings"
 
 Rectangle {
     id: root
@@ -50,6 +51,7 @@ Rectangle {
     property string unlockedBalanceText
     property int minHeight: (appWindow.height > 800) ? appWindow.height : 800 * scaleRatio
     property alias contentHeight: mainFlickable.contentHeight
+    property alias flickable: mainFlickable
 //    property int headerHeight: header.height
 
     property Transfer transferView: Transfer { }
@@ -120,7 +122,7 @@ Rectangle {
             }, State {
                name: "Receive"
                PropertyChanges { target: root; currentView: receiveView }
-               PropertyChanges { target: mainFlickable; contentHeight: 1000 * scaleRatio }
+               PropertyChanges { target: mainFlickable; contentHeight: receiveView.receiveHeight + 100 }
             }, State {
                name: "TxKey"
                PropertyChanges { target: root; currentView: txkeyView }
@@ -128,7 +130,7 @@ Rectangle {
             }, State {
                name: "SharedRingDB"
                PropertyChanges { target: root; currentView: sharedringdbView }
-               PropertyChanges { target: mainFlickable; contentHeight: minHeight  }
+               PropertyChanges { target: mainFlickable; contentHeight: sharedringdbView.panelHeight + 100  }
             }, State {
                 name: "AddressBook"
                 PropertyChanges {  target: root; currentView: addressBookView  }
@@ -140,7 +142,7 @@ Rectangle {
             }, State {
                 name: "Settings"
                PropertyChanges { target: root; currentView: settingsView }
-               PropertyChanges { target: mainFlickable; contentHeight: 2000 * scaleRatio }
+               PropertyChanges { target: mainFlickable; contentHeight: settingsView.settingsHeight }
             }, State {
                 name: "Mining"
                 PropertyChanges { target: root; currentView: miningView }

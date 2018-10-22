@@ -188,7 +188,7 @@ Rectangle {
                         id: fromDatePicker
                         Layout.fillWidth: true
                         width: 100 * scaleRatio
-                        inputLabel.text: "Date from"
+                        inputLabel.text: qsTr("Date from") + translationManager.emptyString
 
                         onCurrentDateChanged: {
                             onFilterChanged()
@@ -211,7 +211,7 @@ Rectangle {
                         id: toDatePicker
                         Layout.fillWidth: true
                         width: 100 * scaleRatio
-                        inputLabel.text: "Date to"
+                        inputLabel.text: qsTr("Date to") + translationManager.emptyString
 
                         onCurrentDateChanged: {
                             onFilterChanged()
@@ -244,10 +244,11 @@ Rectangle {
                     dropdownHeight: 28 * scaleRatio
 
                     Layout.fillWidth: true
-                    shadowReleasedColor: "#4186E0"
-                    shadowPressedColor: "#2E5D9B"
+                    shadowReleasedColor: "#FF4304"
+                    shadowPressedColor: "#B32D00"
                     releasedColor: "#404040"
                     pressedColor: "#202020"
+                    colorBorder: "#404040"
                     colorHeaderBackground: "#404040"
 
                     onChanged: {

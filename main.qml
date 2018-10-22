@@ -40,6 +40,8 @@ import moneroComponents.NetworkType 1.0
 
 import "components"
 import "wizard"
+import "../js/Utils.js" as Utils
+import "js/Windows.js" as Windows
 
 ApplicationWindow {
     id: appWindow
@@ -76,6 +78,7 @@ ApplicationWindow {
     readonly property string localDaemonAddress : persistentSettings.nettype == NetworkType.MAINNET ? "localhost:19001" : persistentSettings.nettype == NetworkType.TESTNET ? "localhost:29001" : "localhost:39001"
     property string currentDaemonAddress;
     property bool startLocalNodeCancelled: false
+    property int estimatedBlockchainSize: 50 // GB
 
     // true if wallet ever synchronized
     property bool walletInitialized : false
@@ -100,12 +103,13 @@ ApplicationWindow {
         if(seq === "Ctrl+S") middlePanel.state = "Transfer"
         else if(seq === "Ctrl+R") middlePanel.state = "Receive"
         else if(seq === "Ctrl+K") middlePanel.state = "TxKey"
-        else if(seq === "Ctrl+S") middlePanel.state = "SharedRingDB"
         else if(seq === "Ctrl+H") middlePanel.state = "History"
         else if(seq === "Ctrl+B") middlePanel.state = "AddressBook"
         else if(seq === "Ctrl+M") middlePanel.state = "Mining"
         else if(seq === "Ctrl+I") middlePanel.state = "Sign"
+        else if(seq === "Ctrl+G") middlePanel.state = "SharedRingDB"
         else if(seq === "Ctrl+E") middlePanel.state = "Settings"
+        else if(seq === "Ctrl+Y") leftPanel.keysClicked()
         else if(seq === "Ctrl+D") middlePanel.state = "Advanced"
         else if(seq === "Ctrl+Tab" || seq === "Alt+Tab") {
             /*
@@ -121,12 +125,13 @@ ApplicationWindow {
             else if(middlePanel.state === "Settings") middlePanel.state = "Dashboard"
             */
             if(middlePanel.state === "Settings") middlePanel.state = "Transfer"
-            else if(middlePanel.state === "Transfer") middlePanel.state = "Receive"
-            else if(middlePanel.state === "Receive") middlePanel.state = "TxKey"
+            else if(middlePanel.state === "Transfer") middlePanel.state = "AddressBook"
+            else if(middlePanel.state === "AddressBook") middlePanel.state = "Receive"
+            else if(middlePanel.state === "Receive") middlePanel.state = "History"
+            else if(middlePanel.state === "History") middlePanel.state = "Mining"
+            else if(middlePanel.state === "Mining") middlePanel.state = "TxKey"
             else if(middlePanel.state === "TxKey") middlePanel.state = "SharedRingDB"
-            else if(middlePanel.state === "SharedRingDB") middlePanel.state = "History"
-            else if(middlePanel.state === "History") middlePanel.state = "AddressBook"
-            else if(middlePanel.state === "AddressBook") middlePanel.state = "Sign"
+            else if(middlePanel.state === "SharedRingDB") middlePanel.state = "Sign"
             else if(middlePanel.state === "Sign") middlePanel.state = "Settings"
         } else if(seq === "Ctrl+Shift+Backtab" || seq === "Alt+Shift+Backtab") {
             /*
@@ -142,12 +147,13 @@ ApplicationWindow {
             else if(middlePanel.state === "Transfer") middlePanel.state = "Dashboard"
             */
             if(middlePanel.state === "Settings") middlePanel.state = "Sign"
-            else if(middlePanel.state === "Sign") middlePanel.state = "AddressBook"
-            else if(middlePanel.state === "AddressBook") middlePanel.state = "History"
-            else if(middlePanel.state === "History") middlePanel.state = "SharedRingDB"
+            else if(middlePanel.state === "Sign") middlePanel.state = "SharedRingDB"
             else if(middlePanel.state === "SharedRingDB") middlePanel.state = "TxKey"
-            else if(middlePanel.state === "TxKey") middlePanel.state = "Receive"
-            else if(middlePanel.state === "Receive") middlePanel.state = "Transfer"
+            else if(middlePanel.state === "TxKey") middlePanel.state = "Mining"
+            else if(middlePanel.state === "Mining") middlePanel.state = "History"
+            else if(middlePanel.state === "History") middlePanel.state = "Receive"
+            else if(middlePanel.state === "Receive") middlePanel.state = "AddressBook"
+            else if(middlePanel.state === "AddressBook") middlePanel.state = "Transfer"
             else if(middlePanel.state === "Transfer") middlePanel.state = "Settings"
         }
 
@@ -217,6 +223,9 @@ ApplicationWindow {
         if (typeof wizard.m_wallet !== 'undefined') {
             console.log("using wizard wallet")
             //Set restoreHeight
+            if (persistentSettings.restore_height == 0 && persistentSettings.is_recovering_from_device && walletManager.localDaemonSynced()) {
+                persistentSettings.restore_height = walletManager.blockchainHeight() - 1;
+            }
             if(persistentSettings.restore_height > 0){
                 // We store restore height in own variable for performance reasons.
                 restoreHeight = persistentSettings.restore_height
@@ -326,7 +335,9 @@ ApplicationWindow {
             currentDaemonAddress = localDaemonAddress
 
         console.log("initializing with daemon address: ", currentDaemonAddress)
-        currentWallet.initAsync(currentDaemonAddress, 0, persistentSettings.is_recovering, persistentSettings.restore_height);
+        currentWallet.initAsync(currentDaemonAddress, 0, persistentSettings.is_recovering, persistentSettings.is_recovering_from_device, persistentSettings.restore_height);
+        // save wallet keys in case wallet settings have been changed in the init
+        currentWallet.setPassword(walletPassword);
     }
 
     function walletPath() {
@@ -352,6 +363,10 @@ ApplicationWindow {
         console.log("Wallet connection status changed " + status)
         middlePanel.updateStatus();
         leftPanel.networkStatus.connected = status
+
+        // update local daemon status.
+        if(!isMobile && walletManager.isDaemonLocal(appWindow.persistentSettings.daemon_address))
+            daemonRunning = status;
 
         // Update fee multiplier dropdown on transfer page
         middlePanel.transferView.updatePriorityDropdown();
@@ -419,7 +434,9 @@ ApplicationWindow {
     function connectRemoteNode() {
         console.log("connecting remote node");
         persistentSettings.useRemoteNode = true;
-        currentWallet.initAsync(persistentSettings.remoteNodeAddress);
+        currentDaemonAddress = persistentSettings.remoteNodeAddress;
+        currentWallet.initAsync(currentDaemonAddress);
+        walletManager.setDaemonAddress(currentDaemonAddress);
         remoteNodeConnected = true;
     }
 
@@ -428,6 +445,7 @@ ApplicationWindow {
         persistentSettings.useRemoteNode = false;
         currentDaemonAddress = localDaemonAddress
         currentWallet.initAsync(currentDaemonAddress);
+        walletManager.setDaemonAddress(currentDaemonAddress);
         remoteNodeConnected = false;
     }
 
@@ -617,9 +635,6 @@ ApplicationWindow {
             transactionConfirmationPopup.text +=  qsTr("\n\nAmount: ") + walletManager.displayAmount(transaction.amount);
             transactionConfirmationPopup.text +=  qsTr("\nFee: ") + walletManager.displayAmount(transaction.fee);
             transactionConfirmationPopup.text +=  qsTr("\nRingsize: ") + (mixinCount + 1);
-            if(mixinCount !== 6){
-                transactionConfirmationPopup.text +=  qsTr("\n\nWARNING: non default ring size, which may harm your privacy. Default of 7 is recommended.");
-            }
             transactionConfirmationPopup.text +=  qsTr("\n\nNumber of transactions: ") + transaction.txCount
             transactionConfirmationPopup.text +=  (transactionDescription === "" ? "" : (qsTr("\nDescription: ") + transactionDescription))
             for (var i = 0; i < transaction.subaddrIndices.length; ++i){
@@ -929,29 +944,8 @@ ApplicationWindow {
 //    width: screenWidth //rightPanelExpanded ? 1269 : 1269 - 300
 //    height: 900 //300//maxWindowHeight;
     color: "#FFFFFF"
-    flags: persistentSettings.customDecorations ? (Qt.FramelessWindowHint | Qt.WindowSystemMenuHint | Qt.Window | Qt.WindowMinimizeButtonHint) : (Qt.WindowSystemMenuHint | Qt.Window | Qt.WindowMinimizeButtonHint | Qt.WindowCloseButtonHint | Qt.WindowTitleHint | Qt.WindowMaximizeButtonHint)
+    flags: persistentSettings.customDecorations ? Windows.flagsCustomDecorations : Windows.flags
     onWidthChanged: x -= 0
-
-    function setCustomWindowDecorations(custom) {
-      var x = appWindow.x
-      var y = appWindow.y
-      if (x < 0)
-        x = 0
-      if (y < 0)
-        y = 0
-      persistentSettings.customDecorations = custom;
-      titleBar.visible = custom; // hides custom titlebar based on customDecorations
-
-      if (custom)
-          appWindow.flags = Qt.FramelessWindowHint | Qt.WindowSystemMenuHint | Qt.Window | Qt.WindowMinimizeButtonHint;
-      else
-          appWindow.flags = Qt.WindowSystemMenuHint | Qt.Window | Qt.WindowMinimizeButtonHint | Qt.WindowCloseButtonHint | Qt.WindowTitleHint | Qt.WindowMaximizeButtonHint;
-
-      appWindow.hide()
-      appWindow.x = x
-      appWindow.y = y
-      appWindow.show()
-    }
 
     Component.onCompleted: {
         x = (Screen.width - width) / 2
@@ -1019,10 +1013,11 @@ ApplicationWindow {
         property bool   allow_background_mining : false
         property bool   miningIgnoreBattery : true
         property var    nettype: NetworkType.MAINNET
-        property string daemon_address: nettype == NetworkType.TESTNET ? "localhost:29001" : nettype == NetworkType.STAGENET ? "localhost:39001" : "localhost:19001"
+        property string daemon_address: nettype == NetworkType.TESTNET ? "localhost:28081" : nettype == NetworkType.STAGENET ? "localhost:38081" : "localhost:18081"
         property string payment_id
         property int    restore_height : 0
         property bool   is_recovering : false
+        property bool   is_recovering_from_device : false
         property bool   customDecorations : true
         property string daemonFlags
         property int logLevel: 0
@@ -1112,7 +1107,6 @@ ApplicationWindow {
             persistentSettings.wallet_path = walletManager.urlToLocalPath(fileDialog.fileUrl)
             if(isIOS)
                 persistentSettings.wallet_path = persistentSettings.wallet_path.replace(moneroAccountsDir,"")
-            console.log("ÖPPPPNA")
             console.log(moneroAccountsDir)
             console.log(fileDialog.fileUrl)
             console.log(persistentSettings.wallet_path)
@@ -1150,9 +1144,9 @@ ApplicationWindow {
                 if(validator.readOnly)
                     confirmationDialog.text  += qsTr("Error: Filesystem is read only") + "\n\n"
                 if(validator.storageAvailable < 20)
-                    confirmationDialog.text  += qsTr("Warning: There's only %1 GB available on the device. Blockchain requires ~%2 GB of data.").arg(validator.storageAvailable).arg(30) + "\n\n"
+                    confirmationDialog.text  += qsTr("Warning: There's only %1 GB available on the device. Blockchain requires ~%2 GB of data.").arg(validator.storageAvailable).arg(estimatedBlockchainSize) + "\n\n"
                 else
-                    confirmationDialog.text  += qsTr("Note: There's %1 GB available on the device. Blockchain requires ~%2 GB of data.").arg(validator.storageAvailable).arg(30) + "\n\n"
+                    confirmationDialog.text  += qsTr("Note: There's %1 GB available on the device. Blockchain requires ~%2 GB of data.").arg(validator.storageAvailable).arg(estimatedBlockchainSize) + "\n\n"
                 if(!validator.lmdbExists)
                     confirmationDialog.text  += qsTr("Note: lmdb folder not found. A new folder will be created.") + "\n\n"
 
@@ -1277,7 +1271,7 @@ ApplicationWindow {
                 PropertyChanges { target: appWindow; width: (screenWidth < 930 || isAndroid || isIOS)? screenWidth : 930; }
                 PropertyChanges { target: appWindow; height: maxWindowHeight; }
                 PropertyChanges { target: resizeArea; visible: true }
-                PropertyChanges { target: titleBar; maximizeButtonVisible: false }
+                PropertyChanges { target: titleBar; showMaximizeButton: false }
 //                PropertyChanges { target: frameArea; blocked: true }
                 PropertyChanges { target: titleBar; visible: false }
                 PropertyChanges { target: titleBar; y: 0 }
@@ -1293,7 +1287,7 @@ ApplicationWindow {
                 PropertyChanges { target: appWindow; width: (screenWidth < 969 || isAndroid || isIOS)? screenWidth : 969 } //rightPanelExpanded ? 1269 : 1269 - 300;
                 PropertyChanges { target: appWindow; height: maxWindowHeight; }
                 PropertyChanges { target: resizeArea; visible: true }
-                PropertyChanges { target: titleBar; maximizeButtonVisible: true }
+                PropertyChanges { target: titleBar; showMaximizeButton: true }
 //                PropertyChanges { target: frameArea; blocked: true }
                 PropertyChanges { target: titleBar; visible: true }
 //                PropertyChanges { target: titleBar; y: 0 }
@@ -1308,6 +1302,25 @@ ApplicationWindow {
             anchors.left: parent.left
             anchors.right: parent.right
             height: visible? 65 * scaleRatio : 0
+
+            MouseArea {
+                enabled: persistentSettings.customDecorations
+                property var previousPosition
+                anchors.fill: parent
+                propagateComposedEvents: true
+                onPressed: previousPosition = globalCursor.getPosition()
+                onPositionChanged: {
+                    if (pressedButtons == Qt.LeftButton) {
+                        var pos = globalCursor.getPosition()
+                        var dx = pos.x - previousPosition.x
+                        var dy = pos.y - previousPosition.y
+
+                        appWindow.x += dx
+                        appWindow.y += dy
+                        previousPosition = pos
+                    }
+                }
+            }
         }
 
         LeftPanel {
@@ -1315,41 +1328,97 @@ ApplicationWindow {
             anchors.top: mobileHeader.bottom
             anchors.left: parent.left
             anchors.bottom: parent.bottom
-            onDashboardClicked: { middlePanel.state = "Dashboard"; if(isMobile) hideMenu(); updateBalance(); }
-            onTransferClicked: { middlePanel.state = "Transfer"; if(isMobile) hideMenu(); updateBalance(); }
-            onReceiveClicked: { middlePanel.state = "Receive"; if(isMobile) hideMenu(); updateBalance(); }
-            onTxkeyClicked: { middlePanel.state = "TxKey"; if(isMobile) hideMenu(); updateBalance(); }
-            onSharedringdbClicked: { middlePanel.state = "SharedRingDB"; if(isMobile) hideMenu(); updateBalance(); }
-            onHistoryClicked: { middlePanel.state = "History"; if(isMobile) hideMenu(); updateBalance(); }
-            onAddressBookClicked: { middlePanel.state = "AddressBook"; if(isMobile) hideMenu(); updateBalance(); }
-            onMiningClicked: { middlePanel.state = "Mining"; if(isMobile) hideMenu(); updateBalance(); }
-            onSignClicked: { middlePanel.state = "Sign"; if(isMobile) hideMenu(); updateBalance(); }
-            onSettingsClicked: { middlePanel.state = "Settings"; if(isMobile) hideMenu(); updateBalance(); }
-            onKeysClicked: {
-                passwordDialog.onAcceptedCallback = function() {
-                    if(walletPassword === passwordDialog.password){
-                        if(currentWallet.seedLanguage == "") {
-                            console.log("No seed language set. Using English as default");
-                            currentWallet.setSeedLanguage("English");
-                        }
-                        // Load keys page
-                        middlePanel.state = "Keys"
-                    } else {
-                        informationPopup.title  = qsTr("Error") + translationManager.emptyString;
-                        informationPopup.text = qsTr("Wrong password");
-                        informationPopup.open()
-                        informationPopup.onCloseCallback = function() {
-                            passwordDialog.open()
-                        }
-                    }
+            onDashboardClicked: {
+                middlePanel.state = "Dashboard";
+                middlePanel.flickable.contentY = 0;
+                if(isMobile) {
+                    hideMenu();
                 }
-                passwordDialog.onRejectedCallback = function() {
-                    appWindow.showPageRequest("Settings");
-                }
-                passwordDialog.open();
-                if(isMobile) hideMenu();
                 updateBalance();
             }
+
+            onTransferClicked: {
+                middlePanel.state = "Transfer";
+                middlePanel.flickable.contentY = 0;
+                if(isMobile) {
+                    hideMenu();
+                }
+                updateBalance();
+            }
+
+            onReceiveClicked: {
+                middlePanel.state = "Receive";
+                middlePanel.flickable.contentY = 0;
+                if(isMobile) {
+                    hideMenu();
+                }
+                updateBalance();
+            }
+
+            onTxkeyClicked: {
+                middlePanel.state = "TxKey";
+                middlePanel.flickable.contentY = 0;
+                if(isMobile) {
+                    hideMenu();
+                }
+                updateBalance();
+            }
+
+            onSharedringdbClicked: {
+                middlePanel.state = "SharedRingDB";
+                middlePanel.flickable.contentY = 0;
+                if(isMobile) {
+                    hideMenu();
+                }
+                updateBalance();
+            }
+
+            onHistoryClicked: {
+                middlePanel.state = "History";
+                middlePanel.flickable.contentY = 0;
+                if(isMobile) {
+                    hideMenu();
+                }
+                updateBalance();
+            }
+
+            onAddressBookClicked: {
+                middlePanel.state = "AddressBook";
+                middlePanel.flickable.contentY = 0;
+                if(isMobile) {
+                    hideMenu();
+                }
+                updateBalance();
+            }
+
+            onMiningClicked: {
+                middlePanel.state = "Mining";
+                middlePanel.flickable.contentY = 0;
+                if(isMobile) {
+                    hideMenu();
+                }
+                updateBalance();
+            }
+
+            onSignClicked: {
+                middlePanel.state = "Sign";
+                middlePanel.flickable.contentY = 0;
+                if(isMobile) {
+                    hideMenu();
+                }
+                updateBalance();
+            }
+
+            onSettingsClicked: {
+                middlePanel.state = "Settings";
+                middlePanel.flickable.contentY = 0;
+                if(isMobile) {
+                    hideMenu();
+                }
+                updateBalance();
+            }
+
+            onKeysClicked: Utils.showSeedPage();
         }
 
         RightPanel {
@@ -1531,11 +1600,20 @@ ApplicationWindow {
 
         TitleBar {
             id: titleBar
-            anchors.left: parent.left
-            anchors.right: parent.right
             x: 0
             y: 0
-            customDecorations: persistentSettings.customDecorations
+            anchors.left: parent.left
+            anchors.right: parent.right
+            showMinimizeButton: true
+            showMaximizeButton: true
+            showWhatIsButton: false
+            showMoneroLogo: true
+            onCloseClicked: appWindow.close();
+            onMaximizeClicked: {
+                appWindow.visibility = appWindow.visibility !== Window.Maximized ? Window.Maximized :
+                                                                                    Window.Windowed
+            }
+            onMinimizeClicked: appWindow.visibility = Window.Minimized
             onGoToBasicVersion: {
                 if (yes) {
                     // basicPanel.currentView = middlePanel.currentView
@@ -1564,15 +1642,6 @@ ApplicationWindow {
                     }
                 }
             }
-
-            Rectangle {
-                anchors.bottom: parent.bottom
-                anchors.right: parent.right
-                anchors.left: parent.left
-                height:1
-                color: "#2F2F2F"
-                z: 2
-            }
         }
 
         // new ToolTip
@@ -1581,7 +1650,7 @@ ApplicationWindow {
             property alias text: content.text
             width: content.width + 12
             height: content.height + 17
-            color: "#2895FC"
+            color: "#FF6C3C"
             //radius: 3
             visible:false;
 
@@ -1714,7 +1783,7 @@ ApplicationWindow {
           var hash = parts[1]
           var user_url = parts[2]
           var auto_url = parts[3]
-          var msg = qsTr("New version of levar-wallet-gui is available: %1<br>%2").arg(version).arg(user_url) + translationManager.emptyString
+          var msg = qsTr("New version of leviar-wallet-gui is available: %1<br>%2").arg(version).arg(user_url) + translationManager.emptyString
           notifier.show(msg)
         }
         else {
@@ -1723,13 +1792,12 @@ ApplicationWindow {
     }
 
     function checkUpdates() {
-        //TODO leviar check updates
-        //walletManager.checkUpdatesAsync("leviar-gui", "gui")
+        walletManager.checkUpdatesAsync("leviar-gui", "gui")
     }
 
     Timer {
         id: updatesTimer
-        interval: 3600*1000; running: false; repeat: false
+        interval: 3600*1000; running: true; repeat: true
         onTriggered: checkUpdates()
     }
 
@@ -1740,7 +1808,25 @@ ApplicationWindow {
             middlePanel.focus = true
             middlePanel.focus = false
         }
+    }
 
+    // Daemon console
+    DaemonConsole {
+        id: daemonConsolePopup
+        height:500
+        width:800
+        title: qsTr("Daemon log") + translationManager.emptyString
+        onAccepted: {
+            close();
+        }
+    }
 
+    // background gradient
+    Rectangle {
+        id: inactiveOverlay
+        visible: false
+        anchors.fill: parent
+        color: "black"
+        opacity: 0.8
     }
 }

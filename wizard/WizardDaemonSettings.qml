@@ -113,7 +113,7 @@ ColumnLayout {
 //            horizontalAlignment: Text.AlignHCenter
             text: qsTr("To be able to communicate with the Leviar network your wallet needs to be connected to a Leviar node. For best privacy it's recommended to run your own node. \
                         <br><br> \
-                        If you don't have the option to run an own node there's an option to connect to a remote node.")
+                        If you don't have the option to run your own node, there's an option to connect to a remote node.")
                     + translationManager.emptyString
         }
     }
@@ -121,11 +121,11 @@ ColumnLayout {
     ColumnLayout {
 
         RowLayout {
-            CheckBox {
+            RadioButton {
                 id: localNode
                 text: qsTr("Start a node automatically in background (recommended)") + translationManager.emptyString
-                checkedIcon: "../images/checkedBlackIcon.png"
-                background: "#FFFFFF"
+                checkedColor: Qt.rgba(0, 0, 0, 0.75)
+                borderColor: Qt.rgba(0, 0, 0, 0.45)
                 fontColor: "#4A4646"
                 fontSize: 16 * scaleRatio
                 checked: !appWindow.persistentSettings.useRemoteNode && !isAndroid && !isIOS
@@ -205,12 +205,12 @@ ColumnLayout {
         }
 
         RowLayout {
-            CheckBox {
+            RadioButton {
                 id: remoteNode
                 text: qsTr("Connect to a remote node") + translationManager.emptyString
-                checkedIcon: "../images/checkedBlackIcon.png"
+                checkedColor: Qt.rgba(0, 0, 0, 0.75)
+                borderColor: Qt.rgba(0, 0, 0, 0.45)
                 Layout.topMargin: 20 * scaleRatio
-                background: "#FFFFFF"
                 fontColor: "#4A4646"
                 fontSize: 16 * scaleRatio
                 checked: appWindow.persistentSettings.useRemoteNode

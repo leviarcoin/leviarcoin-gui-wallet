@@ -33,10 +33,10 @@ elif [ "$BUILD_TYPE" == "release-static" ]; then
     if [ "$platform" != "darwin" ]; then
 	    CONFIG="CONFIG+=release static";
     else
-        # OS X: build static libwallet but dynamic Qt.
+        # OS X: build static libwallet but dynamic Qt. 
         echo "OS X: Building Qt project without static flag"
         CONFIG="CONFIG+=release";
-    fi
+    fi    
     BIN_PATH=release/bin
 elif [ "$BUILD_TYPE" == "release-android" ]; then
     echo "Building release for ANDROID"
@@ -73,7 +73,7 @@ fi
 
 # build libwallet
 ./get_libwallet_api.sh $BUILD_TYPE
-
+ 
 # build zxcvbn
 if [ "$DISABLE_PASS_STRENGTH_METER" != true ]; then
     $MAKE -C src/zxcvbn-c || exit
@@ -97,12 +97,6 @@ elif [ "$platform" == "mingw64" ] || [ "$platform" == "mingw32" ]; then
 fi
 
 # force version update
-get_tag
-echo "var GUI_VERSION = \"18.06\"" > version.js
-pushd "$MONERO_DIR"
-get_tag
-popd
-echo "var GUI_MONERO_VERSION = \"18.06\"" >> version.js
 
 cd build
 if ! QMAKE=$(find_command qmake qmake-qt5); then
@@ -110,12 +104,13 @@ if ! QMAKE=$(find_command qmake qmake-qt5); then
     exit 1
 fi
 $QMAKE ../leviar-wallet-gui.pro "$CONFIG" || exit
-$MAKE -j4 || exit
+$MAKE || exit 
 
-# Copy monerod to bin folder
+# Copy leviard to bin folder
 if [ "$platform" != "mingw32" ] && [ "$ANDROID" != true ]; then
-cp ../monero/build/$BUILD_TYPE/bin/$MONEROD_EXEC $BIN_PATH
+cp ../$MONERO_DIR/bin/$MONEROD_EXEC $BIN_PATH
 fi
 
 # make deploy
 popd
+

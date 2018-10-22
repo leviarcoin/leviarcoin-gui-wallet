@@ -17,7 +17,7 @@ if [ ! -d $MONERO_DIR/src ]; then
 fi
 git submodule update --remote
 git -C $MONERO_DIR fetch
-git -C $MONERO_DIR checkout v0.12.0.0
+git -C $MONERO_DIR checkout v0.13.0.4
 
 # get monero core tag
 get_tag
@@ -75,8 +75,7 @@ else
 fi
 
 if [ "$BUILD_LIBWALLET" != true ]; then
-    # exit this script
-    return
+    exit 0
 fi
 
 echo "GUI_MONERO_VERSION=\"$VERSIONTAG\"" > $MONERO_DIR/version.sh

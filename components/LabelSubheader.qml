@@ -32,7 +32,7 @@ import "../components" as MoneroComponents
 
 Label {
     id: item
-    fontSize: 17 * scaleRatio
+    fontSize: 18 * scaleRatio
 
     Rectangle {
         anchors.top: item.bottom
@@ -42,5 +42,11 @@ Label {
         height: 2
         color: MoneroComponents.Style.dividerColor
         opacity: MoneroComponents.Style.dividerOpacity
+    }
+
+    MouseArea {
+        anchors.fill: parent
+        acceptedButtons: Qt.NoButton
+        cursorShape: parent.hoveredLink ? Qt.PointingHandCursor : Qt.ArrowCursor
     }
 }

@@ -298,7 +298,7 @@ DaemonManager::DaemonManager(QObject *parent)
     : QObject(parent)
 {
 
-    // Platform depetent path to monerod
+    // Platform depetent path to leviard
 #ifdef Q_OS_WIN
     m_monerod = QApplication::applicationDirPath() + "/leviard.exe";
 #elif defined(Q_OS_UNIX)
